@@ -41,7 +41,7 @@ app.post("/login/validate", function(req, res) {
             else {
                 obj['message'] = "Success";
                 obj['data']['employeeid'] = req.body.employeeid;
-                obj['data']['dept'] = results[0].dept;
+                obj['data']['dept'] = results[0].department;
                 obj['data']['name'] = results[0].name;
             }
             res.send(obj);       
@@ -228,21 +228,25 @@ app.get("/occupancy/count/:id", (req, res) => {
 })
 
 
-app.get("/expense/client/service", (req, res) => {
+app.post("/expense/client/procedure", (req, res) => {
 
-    var procedure_service = "SELECT l.branch_id, SUM(procedure_service.procedure_service_rate) SERVICE_COST FROM (SELECT * FROM `patient_activity_procedure_service` WHERE deleted_at IS NULL) procedure_service JOIN ( SELECT * FROM leads WHERE status = 'Ongoing') l ON procedure_service.patient_id = l.patient_id JOIN patients pp ON pp.id = procedure_service.patient_id WHERE procedure_service.schedule_date BETWEEN '2022-10-25' AND '2022-11-24' GROUP BY 1";
+    var fromDate = req.body.fromDate;
+    var toDate = req.body.toDate;
+
+    var procedure_service = `SELECT l.branch_id, SUM(procedure_service.procedure_service_rate) SERVICE_COST FROM (SELECT * FROM patient_activity_procedure_service WHERE deleted_at IS NULL) procedure_service JOIN ( SELECT * FROM leads WHERE status = 'Ongoing') l ON procedure_service.patient_id = l.patient_id JOIN patients pp ON pp.id = procedure_service.patient_id WHERE procedure_service.schedule_date BETWEEN '${fromDate}' AND '${toDate}' GROUP BY 1`;
 
     thgmain.query(procedure_service, function (error, results, fields) {
         var data = {};
         if(error) {
             console.log(error);
-            data["ack"] = "Error";
+            data["message"] = "Error";
+            data["error"] = "SQL Error";
             res.send(data);
         }
         else {
             console.log(results);
             var amount = {};
-            data["ack"] = "Success";
+            data["message"] = "Success";
             amount["Perungudi"] = results[0].SERVICE_COST;
             amount["Arumbakkam"] = results[1].SERVICE_COST;
             amount["Neelankarai"] = results[2].SERVICE_COST;
