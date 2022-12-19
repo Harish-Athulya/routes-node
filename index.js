@@ -227,162 +227,48 @@ app.get("/occupancy/count/:id", (req, res) => {
     });
 })
 
-
-app.post("/expense/client/extra", (req, res) => {
-
-    var fromDate = req.body.fromDate;
-    var toDate = req.body.toDate;
-
-    var active_service = `SELECT l.branch_id, SUM(extra_service.extra_service_rate) SERVICE_COST FROM (SELECT * FROM patient_activity_staff_extra_service WHERE deleted_at IS NULL) extra_service JOIN ( SELECT * FROM leads WHERE status = 'Ongoing') l ON extra_service.patient_id = l.patient_id JOIN patients pp ON pp.id = extra_service.patient_id WHERE extra_service.schedule_date BETWEEN '${fromDate}' AND '${toDate}' GROUP BY 1`;
-
-    thgmain.query(active_service, function (error, results, fields) {
-        var data = {};
-        if(error) {
-            console.log(error);
-            data["message"] = "Error";
-            data["error"] = "SQL Error";
-            res.send(data);
-        }
-        else {
-            console.log(results);
-            var amount = {};
-            data["message"] = "Success";
-
-            amount = initPrice(amount);
-            amount = setPrice(amount, results);
-
-            data["amount"] = amount;
-            res.send(data);
-            // console.log("API hit success");
-
-        }
-    })
-
-});
-
-app.post("/expense/client/procedure", (req, res) => {
+app.post("/expense/client/:service", (req, res) => {
+    var service = req.params.service;
 
     var fromDate = req.body.fromDate;
     var toDate = req.body.toDate;
 
+    var extra_service = `SELECT l.branch_id, SUM(extra_service.extra_service_rate) SERVICE_COST FROM (SELECT * FROM patient_activity_staff_extra_service WHERE deleted_at IS NULL) extra_service JOIN ( SELECT * FROM leads WHERE status = 'Ongoing') l ON extra_service.patient_id = l.patient_id JOIN patients pp ON pp.id = extra_service.patient_id WHERE extra_service.schedule_date BETWEEN '${fromDate}' AND '${toDate}' GROUP BY 1`;
     var procedure_service = `SELECT l.branch_id, SUM(procedure_service.procedure_service_rate) SERVICE_COST FROM (SELECT * FROM patient_activity_procedure_service WHERE deleted_at IS NULL) procedure_service JOIN ( SELECT * FROM leads WHERE status = 'Ongoing') l ON procedure_service.patient_id = l.patient_id JOIN patients pp ON pp.id = procedure_service.patient_id WHERE procedure_service.schedule_date BETWEEN '${fromDate}' AND '${toDate}' GROUP BY 1`;
-
-    thgmain.query(procedure_service, function (error, results, fields) {
-        var data = {};
-        if(error) {
-            // console.log(error);
-            data["message"] = "Error";
-            data["error"] = "SQL Error";
-            res.send(data);
-        }
-        else {
-            // console.log(results);
-            var amount = {};
-            data["message"] = "Success";
-
-            amount = initPrice(amount);
-            amount = setPrice(amount, results);
-
-            data["amount"] = amount;
-            res.send(data);
-            console.log("API hit success");
-        }
-    })
-});
-
-app.post("/expense/client/med_equipment", (req, res) => {
-
-    var fromDate = req.body.fromDate;
-    var toDate = req.body.toDate;
-
-    var procedure_service = `SELECT l.branch_id, SUM(med_equip_services.medical_equipment_rate) SERVICE_COST FROM (SELECT * FROM patient_activity_medical_euipments WHERE deleted_at is null and schedule_date BETWEEN '${fromDate}' AND '${toDate}') med_equip_services JOIN (SELECT * FROM leads WHERE STATUS = 'Ongoing') l ON med_equip_services.patient_id = l.patient_id JOIN patients pp ON pp.id = med_equip_services.patient_id GROUP BY 1`;
-
-    thgmain.query(procedure_service, function (error, results, fields) {
-        var data = {};
-        if(error) {
-            console.log(error);
-            data["message"] = "Error";
-            data["error"] = "SQL Error";
-            res.send(data);
-        }
-        else {
-            console.log(results);
-            var amount = {};
-            data["message"] = "Success";
-
-            amount = initPrice(amount);
-            amount = setPrice(amount, results);
-            data["amount"] = amount;
-
-            res.send(data);
-        }
-    })
-});
-
-app.post("/expense/client/food", (req, res) => {
-    
-    var fromDate = req.body.fromDate;
-    var toDate = req.body.toDate;
-    
+    var equipment_service = `SELECT l.branch_id, SUM(med_equip_services.medical_equipment_rate) SERVICE_COST FROM (SELECT * FROM patient_activity_medical_euipments WHERE deleted_at is null and schedule_date BETWEEN '${fromDate}' AND '${toDate}') med_equip_services JOIN (SELECT * FROM leads WHERE STATUS = 'Ongoing') l ON med_equip_services.patient_id = l.patient_id JOIN patients pp ON pp.id = med_equip_services.patient_id GROUP BY 1`;
     var food_service = `SELECT l.branch_id, sum(food_activity.fb_amount) SERVICE_COST FROM (SELECT * FROM patient_activity_fb WHERE deleted_at IS NULL and schedule_date BETWEEN '${fromDate}' AND '${toDate}') food_activity JOIN (SELECT * FROM leads WHERE STATUS = 'Ongoing') l ON food_activity.patient_id = l.patient_id GROUP BY 1`;
-    
-    thgmain.query(food_service, (err, results, fields) => {
-        var data = {};
-        if(err) {
-            console.log(err);
-            data['message'] = "Error";
-            data['error'] = "SQL Error";
-            res.send(data);
-        }
-        else {
-            var amount = {};
-            
-            data["message"] = "Success";
-            amount = initPrice(amount);            
-            amount = setPrice(amount, results);            
-            data["amount"] = amount;
-            res.send(data);
-        }
-    });
-    
-});
-
-app.post("/expense/client/emergency", (req, res) => {
-    
-    var fromDate = req.body.fromDate;
-    var toDate = req.body.toDate;
-    
     var emergency_service = `SELECT l.branch_id, SUM(emergency_service.emergency_care_amount) SERVICE_COST FROM (SELECT * FROM patient_activity_medical_emergency_care WHERE deleted_at is null and schedule_date BETWEEN '${fromDate}' AND '${toDate}') emergency_service JOIN (SELECT * FROM leads WHERE STATUS = 'Ongoing') l ON emergency_service.patient_id = l.patient_id GROUP BY 1`;
-    
-    thgmain.query(emergency_service, (err, results, fields) => {
-        console.log(results)
-        var data = {};
-        if(err) {
-            console.log(err);
-            data['message'] = "Error";
-            data['error'] = "SQL Error";
-            res.send(data);
-        }
-        else {
-            var amount = {};
-            
-            data["message"] = "Success";
-            amount = initPrice(amount);            
-            amount = setPrice(amount, results);            
-            data["amount"] = amount;
-            res.send(data);
-        }
-    });
-});
-
-app.post("/expense/client/advance", (req, res) => {
-    
-    var fromDate = req.body.fromDate;
-    var toDate = req.body.toDate;
-    
     var advance_service = `SELECT l.branch_id, SUM(advance_activity.activity_rate) SERVICE_COST FROM (SELECT * FROM patient_activity_advance WHERE deleted_at IS NULL AND schedule_date BETWEEN '${fromDate}' AND '${toDate}') advance_activity JOIN (SELECT * FROM leads WHERE status='Ongoing') l ON advance_activity.patient_id = l.patient_id JOIN patients pp ON pp.id = advance_activity.patient_id GROUP BY 1`;
+
+    var requested_service;
+
+    switch (service) {
+        case 'extra':
+            requested_service = extra_service;
+            break;
+        case 'procedure':
+            requested_service = procedure_service;
+            break;
+        case 'equipment':
+            requested_service = equipment_service;
+            break;
+        case 'food':
+            requested_service = food_service;
+            break;
+        case 'emergency':
+            requested_service = emergency_service;
+            break;
+        case 'advance':
+            requested_service = advance_service;
+            break;
     
-    thgmain.query(advance_service, (err, results, fields) => {
+        default:
+            res.send("Invalid resource");
+            break;
+    }
+
+
+    thgmain.query(requested_service, (err, results, fields) => {
         console.log(results)
         var data = {};
         if(err) {
@@ -394,6 +280,7 @@ app.post("/expense/client/advance", (req, res) => {
         else {
             var amount = {};
             
+            data["service"] = service+"_service";
             data["message"] = "Success";
             amount = initPrice(amount);            
             amount = setPrice(amount, results);            
@@ -401,6 +288,9 @@ app.post("/expense/client/advance", (req, res) => {
             res.send(data);
         }
     });
+
+
+    // res.send(data);
 });
 
 
