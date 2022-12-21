@@ -297,11 +297,11 @@ app.post("/expense/client/:service", (req, res) => {
 
 function initPrice(amount) {
 
-    amount["Perungudi"] = "No records";
-    amount["Arumbakkam"] = "No records";
-    amount["Neelankarai"] = "No records";
-    amount["Pallavaram"] = "No records";
-    amount["Kasavanahalli"] = "No records";
+    amount["perungudi"] = "No records";
+    amount["arumbakkam"] = "No records";
+    amount["neelankarai"] = "No records";
+    amount["pallavaram"] = "No records";
+    amount["kasavanahalli"] = "No records";
 
     return amount;
 }
@@ -315,19 +315,19 @@ function setPrice(amount, results) {
 
         switch(branch) {
             case 1:
-                amount["Perungudi"] = results[i].SERVICE_COST
+                amount["perungudi"] = results[i].SERVICE_COST
                 break;
             case 2:
-                amount["Arumbakkam"] = results[i].SERVICE_COST
+                amount["arumbakkam"] = results[i].SERVICE_COST
                 break;
             case 3:
-                amount["Neelankarai"] = results[i].SERVICE_COST
+                amount["neelankarai"] = results[i].SERVICE_COST
                 break;
             case 4:
-                amount["Pallavaram"] = results[i].SERVICE_COST
+                amount["pallavaram"] = results[i].SERVICE_COST
                 break;
             case 5:
-                amount["Kasavanahalli"] = results[i].SERVICE_COST
+                amount["kasavanahalli"] = results[i].SERVICE_COST
                 break;
             default:
                 break;
