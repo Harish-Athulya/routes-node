@@ -2,6 +2,7 @@ var express = require('express');
 var bodyParser = require('body-parser');
 const thgmain = require('./utils/thg_mysql');
 const thgflutter = require('./utils/thg_flutter');
+const localdb = require('./utils/local_db');
 const PORT = process.env.PORT || 3000;
 
 // var client_expense = require('./router/client_expense.js');
@@ -335,6 +336,24 @@ function setPrice(amount, results) {
     }
     return amount;
 }
+
+app.get("/expense/request", (req, res) => {
+    var testQuery = `SELECT et.req_id, users.full_name "Requestor_Name", et.amount, et.purpose, et.req_date, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT * FROM users) users on et.user_id = users.id ORDER BY RAND() LIMIT 5;`;
+
+
+    localdb.query(testQuery, (err, results, fields) => {
+        if(err) {
+            console.log(err);   
+            var data = {};
+            data['ack'] = 'failure';
+            res.send(data);
+        }
+        else {
+            console.log(results);
+            res.send(results);
+        }
+    });
+});
 
 
 app.listen(PORT, (err) => {
