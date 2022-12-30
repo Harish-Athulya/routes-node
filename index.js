@@ -336,6 +336,28 @@ function setPrice(amount, results) {
     return amount;
 }
 
+app.get("/expense/request", (req, res) => {
+    // var testQuery = `SELECT et.req_id, users.full_name "Requestor_Name", et.amount, et.purpose, et.req_date, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT * FROM users) users on et.user_id = users.id ORDER BY RAND() LIMIT 5;`;
+    var expenseQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.req_date, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id`;
+
+    thgmain.query(expenseQuery, (err, results, fields) => {
+        if(err) {
+            console.log(err);   
+            var data = {};
+            data['ack'] = 'failure';
+            res.send(data);
+        }
+        else {
+            var data = {};
+            data['ack'] = 'success';
+            data['info'] = results;
+            console.log(data);
+            res.send(data);
+        }
+    });
+});
+
+
 
 app.listen(PORT, (err) => {
     if(err) console.log(err);
