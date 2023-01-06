@@ -2,6 +2,7 @@ var express = require('express');
 var bodyParser = require('body-parser');
 const thgmain = require('./utils/thg_mysql');
 const thgflutter = require('./utils/thg_flutter');
+const date = require('date-and-time');
 const PORT = process.env.PORT || 3000;
 
 // var client_expense = require('./router/client_expense.js');
@@ -355,6 +356,121 @@ app.get("/expense/request", (req, res) => {
             res.send(data);
         }
     });
+});
+
+app.get("/expense/request", (req, res) => {
+    var selectQuery = `SELECT et.req_id, users.full_name "Requestor_Name", et.amount, et.purpose, et.req_date, et.status, et.dept FROM (SELECT * FROM expense_track) et JOIN (SELECT * FROM users) users on et.user_id = users.id ORDER BY et.req_date DESC`;
+
+    thgmain.query(selectQuery, (err, results, fields) => {
+        if(err) {
+            console.log(err);   
+            var data = {};
+            data['ack'] = 'failure';
+            res.send(data);
+        }
+        else {
+            var data = {};
+            data['ack'] = 'success';
+            data['info'] = results;
+            console.log(data);
+            res.send(data);
+        }
+    });
+});
+
+app.get("/expense/request/count/:status", (req, res) => {
+    var status = req.params.status;
+
+    var valid;
+
+    switch (status) {
+        case 'Pending':
+            valid = 1;
+            break;
+        case 'Approved':
+            valid = 1;
+            break;
+        case 'Acknowledged':
+            valid = 1;
+            break;
+        case 'Transferred':
+            valid = 1;
+            break;
+        case 'Received':
+            valid = 1;
+            break;
+        default:
+            valid = 0;
+            break;
+    }
+    var data = {};
+
+    if(valid == 0) {
+        data['ack'] = 'failure';
+        data['status'] = 'Invalid status entered';
+        console.log(data);
+        res.send(data);
+    }
+    
+    else {
+        var statusCount = `SELECT status, COUNT(*) TOTAL FROM expense_track WHERE status = '${status}' GROUP BY 1`;
+    
+        thgmain.query(statusCount, (err, results, fields) => {
+            if(err) {
+                console.log(err);   
+                // var data = {};
+                data['ack'] = 'failure';
+                data['status'] = 'SQL error';
+                console.log(data);
+                res.send(data);
+            }
+            else {
+                // var data = {};
+                data['ack'] = 'success';
+                if(results[0] == null) {
+                    data['status'] = 0;
+                }
+                else {
+                    data['status'] = results[0].TOTAL;
+                }
+                console.log(data);
+                res.send(data);
+            }
+        });
+    }
+});
+
+app.post("/expense/request/approve", function(req, res) {
+    console.log('receiving id...');
+    var req_id = req.body.req_id;
+    var status = req.body.status;
+
+    
+    console.log(req_id);
+    
+    // const now = date.format(date.addMinutes(date.addHours(new Date(), 5),30), 'YYYY-MM-DD HH:mm:ss');   
+    const now = date.format((new Date()), 'YYYY-MM-DD HH:mm:ss');   
+
+
+    // var selectQuery = `SELECT * FROM users WHERE emp_id = '${eid}' and password = '${epwd}'`;
+    var update_query = `UPDATE expense_track SET status='${status}', updated_at='${now}'  WHERE req_id = '${req_id}'`;
+
+    var data = {};      
+
+
+    thgmain.query(update_query, (err, results, fields) => {
+        if(err) {
+            console.log(err);
+            data['ack'] = "Failure";
+            data['message'] = "SQL error";
+        } 
+        else {
+            console.log(results);
+            data['ack'] = "Success";
+            data['message'] = "Status updated"
+        }
+        res.send(data);       
+    })    
 });
 
 
