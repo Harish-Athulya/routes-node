@@ -359,9 +359,11 @@ app.get("/expense/request", (req, res) => {
 });
 
 app.get("/expense/request", (req, res) => {
-    var selectQuery = `SELECT et.req_id, users.full_name "Requestor_Name", et.amount, et.purpose, et.req_date, et.status, et.dept FROM (SELECT * FROM expense_track) et JOIN (SELECT * FROM users) users on et.user_id = users.id ORDER BY et.req_date DESC`;
+    // var testQuery = `SELECT et.req_id, users.full_name "Requestor_Name", et.amount, et.purpose, et.req_date, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT * FROM users) users on et.user_id = users.id ORDER BY RAND() LIMIT 5;`;
+    // var testQuery = `SELECT et.req_id, users.full_name "Requestor_Name", et.amount, et.purpose, et.req_date, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT * FROM users) users on et.user_id = users.id`;
+    var expenseQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id`
 
-    thgmain.query(selectQuery, (err, results, fields) => {
+    thgmain.query(expenseQuery, (err, results, fields) => {
         if(err) {
             console.log(err);   
             var data = {};
@@ -377,6 +379,7 @@ app.get("/expense/request", (req, res) => {
         }
     });
 });
+
 
 app.get("/expense/request/count/:status", (req, res) => {
     var status = req.params.status;
@@ -445,15 +448,32 @@ app.post("/expense/request/approve", function(req, res) {
     var req_id = req.body.req_id;
     var status = req.body.status;
 
+    var column;
+
+    switch(status) {
+        case 'Approved':
+            column = 'approved_at';
+            break;
+        case 'Acknowledged':
+            column = 'ack_at';
+            break;
+        case 'Transferred':
+            column = 'transfer_at';
+            break;
+        case 'Received':
+            column = 'received_at';
+            break;
+    }
+
     
     console.log(req_id);
     
     // const now = date.format(date.addMinutes(date.addHours(new Date(), 5),30), 'YYYY-MM-DD HH:mm:ss');   
-    const now = date.format((new Date()), 'YYYY-MM-DD HH:mm:ss');   
+    const now = date.format(new Date(), 'YYYY-MM-DD HH:mm:ss');   
 
 
     // var selectQuery = `SELECT * FROM users WHERE emp_id = '${eid}' and password = '${epwd}'`;
-    var update_query = `UPDATE expense_track SET status='${status}', updated_at='${now}'  WHERE req_id = '${req_id}'`;
+    var update_query = `UPDATE expense_track SET status='${status}', ${column}='${now}'  WHERE req_id = '${req_id}'`;
 
     var data = {};      
 
