@@ -361,10 +361,12 @@ app.get("/expense/request", (req, res) => {
 app.get("/expense/request", (req, res) => {
     // var testQuery = `SELECT et.req_id, users.full_name "Requestor_Name", et.amount, et.purpose, et.req_date, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT * FROM users) users on et.user_id = users.id ORDER BY RAND() LIMIT 5;`;
     // var testQuery = `SELECT et.req_id, users.full_name "Requestor_Name", et.amount, et.purpose, et.req_date, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT * FROM users) users on et.user_id = users.id`;
-    var expenseQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id`
+    // var expenseQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id ORDER BY req_date desc`
+    var listQuesy = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id ORDER BY req_date desc`
 
-    thgmain.query(expenseQuery, (err, results, fields) => {
-        if(err) {
+
+    thgmain.query(listQuesy, (err, results, fields) => {
+         if(err) {
             console.log(err);   
             var data = {};
             data['ack'] = 'failure';
@@ -375,41 +377,41 @@ app.get("/expense/request", (req, res) => {
             data['ack'] = 'success';
             data['info'] = results;
             console.log(data);
-            res.send(data);
-        }
+            res.send(results);
+        } 
     });
 });
 
 
 app.get("/expense/request/count/:status", (req, res) => {
     var status = req.params.status;
-
+    
     var valid;
-
+    
     switch (status) {
         case 'Pending':
             valid = 1;
             break;
-        case 'Approved':
-            valid = 1;
+            case 'Approved':
+                valid = 1;
+                break;
+                case 'Acknowledged':
+                    valid = 1;
+                    break;
+                    case 'Transferred':
+                        valid = 1;
+                        break;
+                        case 'Received':
+                            valid = 1;
             break;
-        case 'Acknowledged':
-            valid = 1;
-            break;
-        case 'Transferred':
-            valid = 1;
-            break;
-        case 'Received':
-            valid = 1;
-            break;
-        default:
-            valid = 0;
-            break;
-    }
-    var data = {};
-
-    if(valid == 0) {
-        data['ack'] = 'failure';
+            default:
+                valid = 0;
+                break;
+            }
+            var data = {};
+            
+            if(valid == 0) {
+                data['ack'] = 'failure';
         data['status'] = 'Invalid status entered';
         console.log(data);
         res.send(data);
@@ -447,6 +449,7 @@ app.post("/expense/request/approve", function(req, res) {
     console.log('receiving id...');
     var req_id = req.body.req_id;
     var status = req.body.status;
+    var eid = req.body.eid;
 
     var column;
 
@@ -454,29 +457,29 @@ app.post("/expense/request/approve", function(req, res) {
         case 'Approved':
             column = 'approved_at';
             break;
-        case 'Acknowledged':
-            column = 'ack_at';
-            break;
-        case 'Transferred':
-            column = 'transfer_at';
+            case 'Acknowledged':
+                column = 'ack_at';
+                break;
+                case 'Transferred':
+                    column = 'transfer_at';
             break;
         case 'Received':
             column = 'received_at';
             break;
-    }
-
-    
-    console.log(req_id);
-    
+        }
+        
+        
+        console.log(req_id);
+        
     // const now = date.format(date.addMinutes(date.addHours(new Date(), 5),30), 'YYYY-MM-DD HH:mm:ss');   
     const now = date.format(new Date(), 'YYYY-MM-DD HH:mm:ss');   
 
 
     // var selectQuery = `SELECT * FROM users WHERE emp_id = '${eid}' and password = '${epwd}'`;
-    var update_query = `UPDATE expense_track SET status='${status}', ${column}='${now}'  WHERE req_id = '${req_id}'`;
-
+    var update_query = `UPDATE expense_track SET status='${status}', ${column}='${now}', ack_by='${eid}'  WHERE req_id = '${req_id}'`;
+    
     var data = {};      
-
+    
 
     thgmain.query(update_query, (err, results, fields) => {
         if(err) {
@@ -493,12 +496,56 @@ app.post("/expense/request/approve", function(req, res) {
     })    
 });
 
+app.post("/expense/request/clarity", (req, res) => {
+    var req_id = req.body.req_id;
+    var eid = req.body.eid;
 
+    const now = date.format(new Date(), 'YYYY-MM-DD HH:mm:ss');   
+
+    var clarityQuery = `INSERT INTO expense_clarity (req_id, user_id, clarity, created_at) VALUES('${req_id}', '${eid}', 'Explain in detail', '${now}')`
+
+    thgmain.query(clarityQuery, (err, results, fields) => {
+        if(err) {
+           console.log(err);   
+           var data = {};
+           data['ack'] = 'failure';
+           res.send(data);
+        }
+        else {
+           var data = {};
+           data['ack'] = 'success';
+           data['info'] = results;
+           console.log(clarityQuery);
+           res.send(data);
+        } 
+    });
+    
+    
+})
+
+app.get('/expense/request/list', (req,res) => {
+    
+    var expenseQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id ORDER BY req_date desc`
+    
+    thgmain.query(expenseQuery, (err, results, fields) => {
+        if(err) {
+           console.log(err);   
+           var data = {};
+           data['ack'] = 'failure';
+           res.send(data);
+        }
+        else {
+           var data = {};
+           data['ack'] = 'success';
+           data['info'] = results;
+           console.log(data);
+           res.send(data);
+        } 
+    })
+    
+})
 
 app.listen(PORT, (err) => {
     if(err) console.log(err);
     console.log("Server listening on", PORT);
 });
-
-
-
