@@ -3,14 +3,24 @@ var bodyParser = require('body-parser');
 const thgmain = require('./utils/thg_mysql');
 const thgflutter = require('./utils/thg_flutter');
 const date = require('date-and-time');
-const PORT = process.env.PORT || 3000;
+const nodemysql = require('node-mysql');
+const PORT = process.env.PORT || 5000;
 
 // var client_expense = require('./router/client_expense.js');
 
 var app = express();
 
-app.use(bodyParser.urlencoded({extended: false}));
-app.use(bodyParser.json());
+app.use(bodyParser.json({limit: '50mb'}));
+app.use(bodyParser.urlencoded({limit: '50mb', extended: true}));
+app.use(express.json());
+
+
+
+// app.use(bodyParser.json({limit: '50mb', extended: true}));
+// app.use(bodyParser.urlencoded({limit: "50mb", extended: true, parameterLimit:50000}));
+// app.use(bodyParser.text({ limit: '200mb' }));
+
+
 
 // app.use('expense/client', client_expense);
 
@@ -403,19 +413,19 @@ app.get("/expense/request/count/:status", (req, res) => {
                         break;
                         case 'Received':
                             valid = 1;
-            break;
-            default:
-                valid = 0;
-                break;
-            }
+                        break;
+                        default:
+                            valid = 0;
+                            break;
+                        }
             var data = {};
             
             if(valid == 0) {
                 data['ack'] = 'failure';
-        data['status'] = 'Invalid status entered';
-        console.log(data);
-        res.send(data);
-    }
+                data['status'] = 'Invalid status entered';
+                console.log(data);
+                res.send(data);
+            }
     
     else {
         var statusCount = `SELECT status, COUNT(*) TOTAL FROM expense_track WHERE status = '${status}' GROUP BY 1`;
@@ -501,15 +511,15 @@ app.post("/expense/request/clarity", (req, res) => {
     var eid = req.body.eid;
 
     const now = date.format(new Date(), 'YYYY-MM-DD HH:mm:ss');   
-
+    
     var clarityQuery = `INSERT INTO expense_clarity (req_id, user_id, clarity, created_at) VALUES('${req_id}', '${eid}', 'Explain in detail', '${now}')`
-
+    
     thgmain.query(clarityQuery, (err, results, fields) => {
         if(err) {
-           console.log(err);   
-           var data = {};
-           data['ack'] = 'failure';
-           res.send(data);
+            console.log(err);   
+            var data = {};
+            data['ack'] = 'failure';
+            res.send(data);
         }
         else {
            var data = {};
@@ -529,21 +539,117 @@ app.get('/expense/request/list', (req,res) => {
     
     thgmain.query(expenseQuery, (err, results, fields) => {
         if(err) {
-           console.log(err);   
-           var data = {};
-           data['ack'] = 'failure';
-           res.send(data);
+            console.log(err);   
+            var data = {};
+            data['ack'] = 'failure';
+            res.send(data);
         }
         else {
-           var data = {};
-           data['ack'] = 'success';
-           data['info'] = results;
-           console.log(data);
-           res.send(data);
+            var data = {};
+            data['ack'] = 'success';
+            data['info'] = results;
+            console.log(data);
+            res.send(data);
         } 
-    })
+    }) 
+});
+
+app.post('/food/update', (req,res) => {
+
+    var branch = req.body.branch;
+    var food_date = req.body.food_date;
+    var food_time = req.body.food_time;
+    var food_type = req.body.food_type;
+    var image_name = req.body.image_name;
+    var created_by = req.body.created_by;
+    var image_blob = req.body.image_blob;
+    var menu_items = req.body.menu_items;
+    
+    // const now = date.format(new Date(), 'YYYY-MM-DD HH:mm:ss');   
+
+    var insertQuery = `INSERT INTO food_tracker (branch, food_date, food_time, food_type, image_name, created_by, menu_items, image_blob) VALUES ('${branch}', STR_TO_DATE('${food_date}', '%d/%m/%Y'), STR_TO_DATE('${food_time}', '%H:%i'), '${food_type}', '${image_name}', '${created_by}', '${menu_items}', '${image_blob}')`;
+    
+    var data = {};
+    // console.log(req.body);
+
+    thgmain.query(insertQuery, (err, results, fields) => {
+        if(err) {
+            console.log(err);
+            data['ack'] = 'Failure';
+            res.send(data);
+        }
+        else {
+            console.log(results);
+            data['ack'] = 'Success';
+            // data['info'] = results;
+            res.send(data);
+        }
+    });
+    
+});
+
+app.post('/food/getupdate', (req,res) => {
+    var branch = req.body.branch;
+    var food_date = req.body.food_date;
+    var food_type = req.body.food_type;
+
+    var selectQuery = `SELECT menu_items, food_time, image_blob, created_at FROM food_tracker WHERE branch = '${branch}' AND food_date = STR_TO_DATE('${food_date}', '%d/%m/%Y') AND food_type='${food_type}' ORDER BY 2 DESC`;
+    
+    var data = {};
+
+    thgmain.query(selectQuery, (err, results, fields) => {
+        if(err) {
+            console.log(err);
+            data['ack'] = 'Failure';
+            res.send(data);
+        }
+        else {
+            // console.log(results);
+            data['ack'] = 'Success';
+            // data['info'] = results[0];
+            if(results[0] == null) {
+                data['info'] = 'No records available';
+            } else {
+                console.log(results[0].image_blob);
+                // data['info'] = results;
+                data['menu_items'] = results[0].menu_items;
+                data['created_at'] = results[0].created_at;
+
+                // var buffer = results[0].image_blob;
+                // var bufferBase64 = buffer.toString('base64');
+                
+                // var buffer = new Buffer( blob );
+                // var bufferBase64 = buffer.toString('base64');
+
+                var buffer_data = results[0].image_blob;
+                // var buf = Buffer.from(buffer_data);                
+                
+                // data['image_blob'] = buf;
+
+                // console.log(buffer_data);
+                
+                var buffer = new Buffer.from(buffer_data);
+                // var bufferBase64 = buffer.toString('base64');
+
+                // const b = Buffer.from(buffer);
+                // console.log(b.toString());
+
+                // data['image_blob'] = buffer_data[1];
+                data['image_blob'] = buffer.toString();
+                data['food_time'] = results[0].food_time;
+
+
+            }
+            res.send(data);
+        }
+    });
+
+
+
     
 })
+
+
 
 app.listen(PORT, (err) => {
     if(err) console.log(err);
