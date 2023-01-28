@@ -642,11 +642,62 @@ app.post('/food/getupdate', (req,res) => {
             }
             res.send(data);
         }
-    });
+    });    
+})
 
+app.post('/login/reset', (req, res) => {
+    var eid = req.body.eid;
+    var oldpwd = req.body.oldpwd;
+    var newpwd = req.body.newpwd;
 
-
+    var idQuery = `SELECT COUNT(emp_id) FROM app_users WHERE emp_id='${eid}'`;
+    console.log('Athulya');
     
+    var data = {};
+    
+    thgmain.query(idQuery, (err, results, fields) => {
+        if(err) {
+            console.log(err);
+            data['ack'] = 'failure';
+            data['reason'] = 'DB error';
+            res.send(data);
+        }
+        else {
+            var count = (results[0]);
+            if(count == 0) {
+                console.log(count);
+                data['ack'] = 'failure';
+                data['reason'] = 'Invalid employee ID';
+                res.send(data);
+            }
+            else {
+                var pwdQuery = `SELECT password FROM app_users WHERE emp_id='${eid}'`;
+                // data['ack'] = 'success';
+                // data['reason'] = 'Correct employee ID';
+                thgmain.query(pwdQuery, (err, results, fields) => {
+                    var dbPwd = results[0].password;
+                    
+                    if(dbPwd != oldpwd) {
+                        // console.log(dbPwd);
+                        data['ack'] = 'failure';
+                        data['reason'] = 'Incorrect password provided';
+                        res.send(data);
+                    }
+                    else {
+                        var updateQuery = `UPDATE app_users SET password = '${newpwd}' WHERE emp_id='${eid}'`;
+                        thgmain.query(updateQuery, (err, results, fields) => {
+                            data['ack'] = 'success';
+                            data['reason'] = 'Password updated';
+                            res.send(data);
+                            // break;
+                        })
+                        
+                    }
+                })
+            }
+
+        }
+    })    
 })
 
 
