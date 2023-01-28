@@ -33,15 +33,21 @@ app.post("/login/validate", function(req, res) {
     var eid = req.body.employeeid;
     var epwd = req.body.password;
     
-    var selectQuery = `SELECT * FROM users WHERE emp_id = '${eid}' and password = '${epwd}'`;
+    var selectQuery = `SELECT * FROM app_users WHERE emp_id = '${eid}' and password = '${epwd}'`;
     
-    thgflutter.query(selectQuery, (err, results, fields) => {
+    thgmain.query(selectQuery, (err, results, fields) => {
         if(err) {
             console.log(err);
+            obj['message'] = "Failure";
+            obj['data']['employeeid'] = req.body.employeeid;
+            obj['data']['dept'] = 'Invalid';
+            obj['data']['name'] = 'Invalid';
         } 
+
         else {
             var obj = {};      
             obj['data'] = {};
+            console.log(results);
             
             if(results[0] == null) {
                 obj['message'] = "Failure";
