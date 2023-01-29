@@ -71,8 +71,8 @@ app.post("/login/id", (req, res) => {
 
     console.log(eid);
 
-    var selectQuery = `SELECT * FROM users WHERE emp_id = '${eid}'`;
-    thgflutter.query(selectQuery, (err, results, fields) => {
+    var selectQuery = `SELECT * FROM app_users WHERE emp_id = '${eid}'`;
+    thgmain.query(selectQuery, (err, results, fields) => {
         var object = {};
         if(err) {
             console.log(err);
