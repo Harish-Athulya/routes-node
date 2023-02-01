@@ -5,6 +5,7 @@ const thgflutter = require('./utils/thg_flutter');
 const date = require('date-and-time');
 const nodemysql = require('node-mysql');
 const PORT = process.env.PORT || 5000;
+// const thgpurchase = require('./utils/thg_purchase');
 
 // var client_expense = require('./router/client_expense.js');
 
@@ -705,6 +706,62 @@ app.post('/login/reset', (req, res) => {
         }
     })    
 })
+
+app.get('/purchase/test', (req, res) => {
+    console.log("Athulya");
+    // var selectQuery = `SELECT * FROM purchaserequest`;
+    // var idQuery = `SELECT COUNT(*) FROM purchaseorder`;
+
+
+    thgpurchase.query('SELECT amount FROM paymentdetails', (err, results, fields) => {
+        // console.log(results[0].unique_id);
+        var xyz = (results[0]);
+        res.send(xyz);
+
+    });
+    
+/*     thgmain.query('SELECT * FROM foodtracker', (err, results, fields) => {
+        console.log("HarishT");
+    }); 
+*/
+
+    // res.send("Success");
+});
+
+app.post('/ops/admission', (req,res) => {
+
+    var branch = req.body.branch;
+    var admission_date = req.body.admission_date;
+    var admission_time = req.body.admission_time;
+    var client_name = req.body.client_name;
+    var room_number = req.body.room_number;
+    var created_by = req.body.created_by;
+    var image_blob = req.body.image_blob;
+    
+    // const now = date.format(new Date(), 'YYYY-MM-DD HH:mm:ss');   
+
+    var insertQuery = `INSERT INTO admission_asl (branch, admission_date, admission_time, client_name, room_number, created_by, admission_image) VALUES ('${branch}', STR_TO_DATE('${admission_date}', '%d/%m/%Y'), STR_TO_DATE('${admission_time}', '%H:%i'), '${client_name}', '${room_number}', '${created_by}', '${image_blob}')`;
+    
+    var data = {};
+    // console.log(req.body);
+
+    thgmain.query(insertQuery, (err, results, fields) => {
+        if(err) {
+            console.log(err);
+            data['ack'] = 'Failure';
+            res.send(data);
+        }
+        else {
+            console.log(results);
+            data['ack'] = 'Success';
+            // data['info'] = results;
+            res.send(data);
+        }
+    });
+    
+});
+
+
 
 
 
