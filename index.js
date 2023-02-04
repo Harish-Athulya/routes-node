@@ -151,8 +151,8 @@ app.get("/occupancy/count", (req, res) => {
             occupied = setOccupiedRooms(results);
             var data = {};
             data['total'] = total;
-            data['occupied'] = occupied;
-            data['vacant'] = getVacantRooms();
+            data['vacant'] = occupied;
+            data['occupied'] = getVacantRooms();
 
             res.send(data);
         }
