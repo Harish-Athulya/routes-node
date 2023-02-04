@@ -4,7 +4,7 @@ const thgmain = require('./utils/thg_mysql');
 const thgflutter = require('./utils/thg_flutter');
 const date = require('date-and-time');
 const nodemysql = require('node-mysql');
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 // const thgpurchase = require('./utils/thg_purchase');
 
 // var client_expense = require('./router/client_expense.js');
@@ -118,8 +118,10 @@ function getVacantRooms() {
 }
 
 app.get("/occupancy/count", (req, res) => {
-    var totalQuery = `SELECT COUNT(*) AS total FROM master_beds mb WHERE mb.room_id IN(SELECT mr.id FROM master_rooms mr)`;
-    var ocpQuery = `SELECT COUNT(*) AS ocp from patient_schedules ps where ps.patient_id in (select DISTINCT(patient_id) from leads) and ps.status!='Cancelled' and ps.schedule_date=curdate()`;
+    // var totalQuery = `SELECT COUNT(*) AS total FROM master_beds mb WHERE mb.room_id IN(SELECT mr.id FROM master_rooms mr)`;
+    var totalQuery = `SELECT COUNT(distinct room_number) AS total FROM master_beds mb join master_rooms mr on mb.room_id=mr.id WHERE mb.status='Active'`;
+    // var ocpQuery = `SELECT COUNT(*) AS ocp from patient_schedules ps where ps.patient_id in (select DISTINCT(patient_id) from leads) and ps.status!='Cancelled' and ps.schedule_date=curdate()`;
+    var ocpQuery = `select COUNT(*) AS ocp from master_beds join master_rooms on master_beds.room_id=master_rooms.id and master_beds.status='Active' and master_beds.id not in (select bed_id from patient_schedules where schedule_date=curdate() and patient_id in(select id from patients) and status!='Cancelled')`;
 
     var total;
     var occupied;
@@ -206,8 +208,11 @@ app.get("/occupancy/count/:id", (req, res) => {
         res.send(data);
     } 
 
-    var branchCountQuery = `SELECT COUNT(*) AS branch_count FROM master_rooms WHERE branch_id = ${branch_id}`;
-    var branchOccupiedQuery = `SELECT COUNT(*) AS ocp_count from patient_schedules ps where ps.patient_id in (select DISTINCT(patient_id) from leads WHERE branch_id = ${branch_id}) and ps.status!='Cancelled' and ps.schedule_date=curdate()`;
+    // var branchCountQuery = `SELECT COUNT(*) AS branch_count FROM master_rooms WHERE branch_id = ${branch_id}`;
+    // var branchOccupiedQuery = `SELECT COUNT(*) AS ocp_count from patient_schedules ps where ps.patient_id in (select DISTINCT(patient_id) from leads WHERE branch_id = ${branch_id}) and ps.status!='Cancelled' and ps.schedule_date=curdate()`;
+    
+    var branchCountQuery = `SELECT COUNT(distinct room_number) AS branch_count FROM master_beds mb join master_rooms mr on mb.room_id=mr.id where mr.branch_id in (${branch_id}) and mb.status='Active'`;
+    var branchOccupiedQuery = `select COUNT(*) AS ocp_count from master_beds join master_rooms on master_beds.room_id=master_rooms.id where master_rooms.branch_id=${branch_id} and master_beds.status='Active' and master_beds.id not in (select bed_id from patient_schedules where schedule_date=curdate() and patient_id in(select id from patients where branch_id=${branch_id}) and status!='Cancelled')`;
 
     
     thgmain.query(branchCountQuery, (err, results, fields) => {
@@ -238,8 +243,9 @@ app.get("/occupancy/count/:id", (req, res) => {
             var data = {};
             data["branch"] = branch;
             data["total"] = branchTotal;
-            data["occupied"] = branchOcp;
-            data["vacant"] = branchTotal - branchOcp;
+            data["vacant"] = branchOcp;
+            data["occupied"] = branchTotal - branchOcp;
+            // data["vacant"] = branchTotal - branchOcp;
             res.send(data);
         } 
     });
@@ -621,27 +627,8 @@ app.post('/food/getupdate', (req,res) => {
                 // data['info'] = results;
                 data['menu_items'] = results[0].menu_items;
                 data['created_at'] = results[0].created_at;
-
-                // var buffer = results[0].image_blob;
-                // var bufferBase64 = buffer.toString('base64');
-                
-                // var buffer = new Buffer( blob );
-                // var bufferBase64 = buffer.toString('base64');
-
                 var buffer_data = results[0].image_blob;
-                // var buf = Buffer.from(buffer_data);                
-                
-                // data['image_blob'] = buf;
-
-                // console.log(buffer_data);
-                
                 var buffer = new Buffer.from(buffer_data);
-                // var bufferBase64 = buffer.toString('base64');
-
-                // const b = Buffer.from(buffer);
-                // console.log(b.toString());
-
-                // data['image_blob'] = buffer_data[1];
                 data['image_blob'] = buffer.toString();
                 data['food_time'] = results[0].food_time;
 
@@ -761,7 +748,35 @@ app.post('/ops/admission', (req,res) => {
     
 });
 
+app.get("/ops/client/:branch", (req, res) => {
 
+    var branch = req.params.branch;
+
+    var selectQuery = `SELECT client_name FROM admission_asl WHERE branch = '${branch}'`;
+
+    var data = {};
+    var client = [];
+
+    thgmain.query(selectQuery, (err, results, fields) => {
+        if(err) {
+            data['ack'] = 'failure';
+            data['info'] = 'DB error';
+            console.log(err);
+            res.send(data);
+        }
+        else {
+            data['ack'] = 'success';
+            for(let i=0; i<results.length; i++) {
+                client.push(results[i].client_name);
+            }
+            data['info'] = client;
+            res.send(data);
+        }
+    })
+    
+    
+    
+});
 
 
 
