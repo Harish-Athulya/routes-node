@@ -99,86 +99,142 @@ var totalRooms;
 var occupiedRooms;
 var vacantRooms;
 
+var totalBeds;
+var occupiedBeds;
+var vacantBeds;
+
 function setTotalRooms(value) {
-    totalRooms = value[0].total;
+    totalRooms = value;
     console.log(totalRooms);
-    return totalRooms;
+    // return totalRooms;
 }
 
-function setOccupiedRooms(value) {
-    occupiedRooms = value[0].ocp;
-    console.log(occupiedRooms);
-    return occupiedRooms;
-}
-
-function getVacantRooms() {
-    vacantRooms = totalRooms - occupiedRooms;
+function setVacantRooms(value) {
+    vacantRooms = value;
     console.log(vacantRooms);
-    return vacantRooms;
+    // return vacantRooms;
+}
+
+function setTotalBeds(value) {
+    totalBeds = value;
+    console.log(totalBeds);
+    // return totalBeds;
+}
+
+function setOccupiedBeds(value) {
+    occupiedBeds = value;
+    console.log(occupiedBeds);
+    // return occupiedBeds;
 }
 
 app.get("/occupancy/count", (req, res) => {
-    // var totalQuery = `SELECT COUNT(*) AS total FROM master_beds mb WHERE mb.room_id IN(SELECT mr.id FROM master_rooms mr)`;
+
     var totalQuery = `SELECT COUNT(distinct room_number) AS total FROM master_beds mb join master_rooms mr on mb.room_id=mr.id WHERE mb.status='Active'`;
-    // var ocpQuery = `SELECT COUNT(*) AS ocp from patient_schedules ps where ps.patient_id in (select DISTINCT(patient_id) from leads) and ps.status!='Cancelled' and ps.schedule_date=curdate()`;
-    var ocpQuery = `select COUNT(*) AS ocp from master_beds join master_rooms on master_beds.room_id=master_rooms.id and master_beds.status='Active' and master_beds.id not in (select bed_id from patient_schedules where schedule_date=curdate() and patient_id in(select id from patients) and status!='Cancelled')`;
+    var vacantQuery = `SELECT COUNT(*) AS vacantRooms from master_beds join master_rooms on master_beds.room_id=master_rooms.id and master_beds.status='Active' and master_beds.id not in (select bed_id from patient_schedules where schedule_date=curdate() and patient_id in(select id from patients) and status!='Cancelled')`;
 
-    var total;
-    var occupied;
 
+    var totalBedsQuery = `SELECT count(mb.bed_number) AS totalbeds FROM master_beds mb join master_rooms mr on mb.room_id=mr.id where mb.status='Active'`;
+    var ocpBedsQuery = `SELECT COUNT(*) AS ocpbeds from patient_schedules join master_beds on patient_schedules.bed_id=master_beds.id join master_rooms on master_rooms.id=master_beds.room_id join patients on patients.id=patient_schedules.patient_id where schedule_date=curdate() and patient_schedules.status!='Cancelled'`;
+
+    var data = {};
+
+    
     thgmain.query(totalQuery, (err, results, fields) => {
         if(err) {
-            console.log(err);   
-            var data = {};
-            data['ack'] = 'failure';
+            data["ack"] = "Failure";
+            data["reason"] = "DB Error";
             res.send(data);
         }
         else {
-            totalRooms = results[0].total;
-            total = setTotalRooms(results);
+            // branch_count = results[0].total;
+            // console.log(branch_count);
+            setTotalRooms(results[0].total);
+            console.log(totalRooms);
         }
     });
     
-    
-    thgmain.query(ocpQuery, (err, results, fields) => {
+    thgmain.query(vacantQuery, (err, results, fields) => {
         if(err) {
-            console.log(err);   
-            var data = {};
-            data['ack'] = 'failure';
+            data["ack"] = "Failure";
+            data["reason"] = "DB Error";
             res.send(data);
         }
         else {
-            occupied = setOccupiedRooms(results);
-            var data = {};
-            data['total'] = total;
-            data['vacant'] = occupied;
-            data['occupied'] = getVacantRooms();
+            setVacantRooms(results[0].vacantRooms);
+            console.log(vacantRooms);
+
+            occupiedRooms = totalRooms - vacantRooms;
+
+}
+    });
+
+     thgmain.query(totalBedsQuery, (err, results, fields) => {
+        if(err) {
+            data["ack"] = "Failure";
+            data["reason"] = "Bed DB Error";
+            res.send(data);
+        }
+        else {
+            setTotalBeds(results[0].totalbeds);
+            console.log(totalBeds);
+        }
+    });
+
+     thgmain.query(ocpBedsQuery, (err, results, fields) => {
+        if(err) {
+            data["ack"] = "Failure";
+            data["reason"] = "DB Error";
+            res.send(data);
+        }
+        else {
+            setOccupiedBeds(results[0].ocpbeds);
+            console.log(occupiedBeds);
+
+            vacantBeds = totalBeds - occupiedBeds; 
+
+            data["totalRooms"] = totalRooms;
+            data["occupiedRooms"] = occupiedRooms;
+            data["vacantRooms"] = vacantRooms;
+            data["totalBeds"] = totalBeds;
+            data["occupiedBeds"] = occupiedBeds;
+            data["vacantBeds"] = vacantBeds;
 
             res.send(data);
         }
-
     });
 
-});
-
+ });
 var branchTotal;
 var branchOcp;
 var branchVacant;
+var bedTotal;
+var bedOcp;
 
 function setBranchCount(value) {
     branchTotal = value;
     return branchTotal;
 }
 
-function setOccupiedCount(value) {
-    branchOcp = value;
-    return branchOcp;
+function setVacantCount(value) {
+    branchVacant = value;
+    return branchVacant;
+}
+function setBedTotalCount(value) {
+    bedTotal = value;
+    return bedTotal;
+}
+
+function setBedOccupiedCount(value) {
+    bedOcp = value;
+    return bedOcp;
 }
 
 app.get("/occupancy/count/:id", (req, res) => {
     var branch = req.params.id;
     var branch_id;
-    
+    var data = {};
+    data["branch"] = branch;
+
     switch (branch) {
         case "Perungudi":
             branch_id = 1;
@@ -201,55 +257,88 @@ app.get("/occupancy/count/:id", (req, res) => {
     }
 
     if(branch_id == 999) {
-        // throw "Invalid Branch Name";
-        var data = {};
-        data['ack'] = 'Failure';
-        data['error'] = 'Invalid Branch Name';
+        data["ack"] = "Failure";
+        data["reason"] = "Invalid Branch";
         res.send(data);
-    } 
+    }
 
-    // var branchCountQuery = `SELECT COUNT(*) AS branch_count FROM master_rooms WHERE branch_id = ${branch_id}`;
-    // var branchOccupiedQuery = `SELECT COUNT(*) AS ocp_count from patient_schedules ps where ps.patient_id in (select DISTINCT(patient_id) from leads WHERE branch_id = ${branch_id}) and ps.status!='Cancelled' and ps.schedule_date=curdate()`;
-    
     var branchCountQuery = `SELECT COUNT(distinct room_number) AS branch_count FROM master_beds mb join master_rooms mr on mb.room_id=mr.id where mr.branch_id in (${branch_id}) and mb.status='Active'`;
-    var branchOccupiedQuery = `select COUNT(*) AS ocp_count from master_beds join master_rooms on master_beds.room_id=master_rooms.id where master_rooms.branch_id=${branch_id} and master_beds.status='Active' and master_beds.id not in (select bed_id from patient_schedules where schedule_date=curdate() and patient_id in(select id from patients where branch_id=${branch_id}) and status!='Cancelled')`;
+    var branchVacantQuery = `SELECT COUNT(*) AS branch_vacant from master_beds join master_rooms on master_beds.room_id=master_rooms.id where master_rooms.branch_id=${branch_id} and master_beds.status='Active' and master_beds.id not in (select bed_id from patient_schedules where schedule_date=curdate() and patient_id in(select id from patients where branch_id=${branch_id}) and status!='Cancelled')`;
 
-    
+    var bedTotalQuery = `SELECT count(mb.bed_number) as Total_Beds FROM master_beds mb join master_rooms mr on mb.room_id=mr.id where mr.branch_id = ${branch_id} and mb.status='Active'`;
+    var bedOcpQuery = `SELECT COUNT(*) AS Ocp_Beds from patient_schedules join master_beds on patient_schedules.bed_id=master_beds.id join master_rooms on master_rooms.id=master_beds.room_id join patients on patients.id=patient_schedules.patient_id where schedule_date=curdate() and patient_schedules.status!='Cancelled' and patients.branch_id = ${branch_id}`;
+
+    var branch_count;
+    var branch_vacant;
+    var branch_ocp;
+
+    var bed_total;
+    var bed_ocp;
+    var bed_vacant;
+
     thgmain.query(branchCountQuery, (err, results, fields) => {
         if(err) {
-            console.log(err);
-            var data = {};
-            data['ack'] = 'Failure';
-            data['error'] = 'SQL Error';
+            data["ack"] = "Failure";
+            data["reason"] = "DB Error";
             res.send(data);
-        } 
-        else {
-            branchTotal = setBranchCount(results[0].branch_count);
-            console.log(branchTotal);            
-        }        
-    });
-    
-    thgmain.query(branchOccupiedQuery, (err, results, fields) => {
-        if(err) {
-            console.log(err);
-            var data = {};
-            data['ack'] = 'Failure';
-            data['error'] = 'SQL Error';
         }
         else {
-            branchOcp = setOccupiedCount(results[0].ocp_count);
-            console.log(branchOcp);
-    
-            var data = {};
-            data["branch"] = branch;
-            data["total"] = branchTotal;
-            data["vacant"] = branchOcp;
-            data["occupied"] = branchTotal - branchOcp;
-            // data["vacant"] = branchTotal - branchOcp;
-            res.send(data);
-        } 
+            branch_count = results[0].branch_count;
+            console.log(branch_count);
+        }
     });
-})
+    
+    thgmain.query(branchVacantQuery, (err, results, fields) => {
+        if(err) {
+            data["ack"] = "Failure";
+            data["reason"] = "DB Error";
+            res.send(data);
+        }
+        else {
+            branch_vacant = results[0].branch_vacant;
+            console.log(branch_vacant);
+
+            branch_ocp = branch_count - branch_vacant;
+            data["total"] = branch_count;
+            data["vacant"] = branch_vacant;
+            data["occupied"] = branch_ocp;
+            // res.send(data);
+        }
+    });
+
+    thgmain.query(bedTotalQuery, (err, results, fields) => {
+        if(err) {
+            data["ack"] = "Failure";
+            data["reason"] = "Bed DB Error";
+            res.send(data);
+        }
+        else {
+            bed_total = results[0].Total_Beds;
+            console.log(bed_total);
+            // data["beds"] = bed_total;
+            // res.send(data);
+        }
+    });
+
+     thgmain.query(bedOcpQuery, (err, results, fields) => {
+        if(err) {
+            data["ack"] = "Failure";
+            data["reason"] = "DB Error";
+            res.send(data);
+        }
+        else {
+            bed_ocp = results[0].Ocp_Beds;
+            console.log(bed_ocp);
+
+            // branch_ocp = branch_count - branch_vacant;
+            data["tbeds"] = bed_total;
+            data["obeds"] = bed_ocp;
+            bed_vacant = bed_total - bed_ocp;
+            data["vbeds"] = bed_vacant;
+            res.send(data);
+        }
+    });
+});
 
 app.post("/expense/client/:service", (req, res) => {
     var service = req.params.service;
