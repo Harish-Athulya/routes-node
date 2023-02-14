@@ -504,22 +504,25 @@ app.get("/expense/request/count/:status", (req, res) => {
         case 'Pending':
             valid = 1;
             break;
-            case 'Approved':
-                valid = 1;
-                break;
-                case 'Acknowledged':
-                    valid = 1;
-                    break;
-                    case 'Transferred':
-                        valid = 1;
-                        break;
-                        case 'Received':
-                            valid = 1;
-                        break;
-                        default:
-                            valid = 0;
-                            break;
-                        }
+        case 'Approved':
+            valid = 1;
+            break;
+        case 'Acknowledged':
+            valid = 1;
+            break;
+        case 'Transferred':
+            valid = 1;
+            break;
+        case 'Received':
+            valid = 1;
+        break;
+        case 'Rejected':
+            valid = 1;
+        break;
+        default:
+            valid = 0;
+            break;
+    }
             var data = {};
             
             if(valid == 0) {
