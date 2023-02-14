@@ -4,7 +4,7 @@ const thgmain = require('./utils/thg_mysql');
 const thgflutter = require('./utils/thg_flutter');
 const date = require('date-and-time');
 const nodemysql = require('node-mysql');
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 // const thgpurchase = require('./utils/thg_purchase');
 
 // var client_expense = require('./router/client_expense.js');
@@ -569,11 +569,14 @@ app.post("/expense/request/approve", function(req, res) {
         case 'Approved':
             column = 'approved_at';
             break;
-            case 'Acknowledged':
-                column = 'ack_at';
-                break;
-                case 'Transferred':
-                    column = 'transfer_at';
+        case 'Rejected':
+            column = 'updated_at';
+            break;
+        case 'Acknowledged':
+            column = 'ack_at';
+            break;
+        case 'Transferred':
+            column = 'transfer_at';
             break;
         case 'Received':
             column = 'received_at';
@@ -582,6 +585,8 @@ app.post("/expense/request/approve", function(req, res) {
         
         
         console.log(req_id);
+        console.log(status);
+        console.log(eid);
         
     // const now = date.format(date.addMinutes(date.addHours(new Date(), 5),30), 'YYYY-MM-DD HH:mm:ss');   
     const now = date.format(new Date(), 'YYYY-MM-DD HH:mm:ss');   
@@ -637,7 +642,7 @@ app.post("/expense/request/clarity", (req, res) => {
 
 app.get('/expense/request/list', (req,res) => {
     
-    var expenseQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id ORDER BY req_date desc`
+    var expenseQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.updated_at updated_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id ORDER BY req_date desc`
     
     thgmain.query(expenseQuery, (err, results, fields) => {
         if(err) {
@@ -795,13 +800,6 @@ app.get('/purchase/test', (req, res) => {
         res.send(xyz);
 
     });
-    
-/*     thgmain.query('SELECT * FROM foodtracker', (err, results, fields) => {
-        console.log("HarishT");
-    }); 
-*/
-
-    // res.send("Success");
 });
 
 app.post('/ops/admission', (req,res) => {
@@ -862,10 +860,27 @@ app.get("/ops/client/:branch", (req, res) => {
             res.send(data);
         }
     })
-    
-    
-    
 });
+
+app.get('/ops/validate/rooms', (req, res) => {
+    var roomQuery = `SELECT room_number FROM admission_asl`;
+    var data = {};
+
+    thgmain.query(roomQuery, (err, results, fields) => {
+        if(err) {   
+            data['ack'] = "Failure";
+            data['reason'] = "Query failure";
+        }
+        else {
+            data['ack'] = "Success";
+            data['records'] = results;
+        }
+
+        res.send(data);
+    })
+    
+    
+})
 
 
 
