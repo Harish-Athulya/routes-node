@@ -4,7 +4,7 @@ const thgmain = require('./utils/thg_mysql');
 const thgflutter = require('./utils/thg_flutter');
 const date = require('date-and-time');
 const nodemysql = require('node-mysql');
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 // const thgpurchase = require('./utils/thg_purchase');
 
 // var client_expense = require('./router/client_expense.js');
@@ -645,7 +645,7 @@ app.post("/expense/request/clarity", (req, res) => {
 
 app.get('/expense/request/list', (req,res) => {
     
-    var expenseQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.updated_at updated_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id ORDER BY req_date desc`
+    var expenseQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.updated_at updated_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id ORDER BY req_date desc`;
     
     thgmain.query(expenseQuery, (err, results, fields) => {
         if(err) {
@@ -884,6 +884,55 @@ app.get('/ops/validate/rooms', (req, res) => {
     
     
 })
+
+app.get('/expense/request/list/:status', (req, res) => {
+
+    var status = req.params.status;
+    var data = {};
+    var valid;
+
+    console.log(`sending ${status}`);
+
+    switch(status) {
+        case 'Pending':
+        case 'Approved':
+        case 'Acknowledged':
+        case 'Transferred':
+        case 'Received':
+        case 'Rejected':
+            valid = 1;
+            break;
+        default:
+            valid = 0;
+            break;
+    }
+
+    if(valid == 0) {
+        data['ack'] = 'Failure';
+        data['reason'] = 'Invalid Status';
+        res.send(data);
+    }
+
+    var selectQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.updated_at updated_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id WHERE et.status = '${status}' ORDER BY req_date desc`
+
+
+    thgmain.query(selectQuery, (err, results, fields) => {
+        if(err) {
+            data['ack'] = 'Failure';
+            data['reason'] = 'DB Failure'
+            res.send(data);
+        }
+        else {
+            data['ack'] = 'Success';
+            data['count'] = results.length;
+            data['info'] = results;
+            res.send(data);
+        }
+    }); 
+    
+    
+});
+
 
 
 
