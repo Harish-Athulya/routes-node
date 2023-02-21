@@ -4,8 +4,8 @@ const thgmain = require('./utils/thg_mysql');
 const thgflutter = require('./utils/thg_flutter');
 const date = require('date-and-time');
 const nodemysql = require('node-mysql');
-const PORT = process.env.PORT || 3000;
-// const thgpurchase = require('./utils/thg_purchase');
+const PORT = process.env.PORT || 5000; 
+const thgpurchase = require('./utils/thg_purchase');
 
 // var client_expense = require('./router/client_expense.js');
 
@@ -26,6 +26,7 @@ app.use(express.json());
 // app.use('expense/client', client_expense);
 
 app.get("/", (req, res)  => {
+    console.log("ATH");
     res.send("ASL Test Router");
 });
 
@@ -591,8 +592,8 @@ app.post("/expense/request/approve", function(req, res) {
         console.log(status);
         console.log(eid);
         
-    // const now = date.format(date.addMinutes(date.addHours(new Date(), 5),30), 'YYYY-MM-DD HH:mm:ss');   
-    const now = date.format(new Date(), 'YYYY-MM-DD HH:mm:ss');   
+    const now = date.format(date.addMinutes(date.addHours(new Date(), 10),30), 'YYYY-MM-DD HH:mm:ss');   
+    // const now = date.format(new Date(), 'YYYY-MM-DD HH:mm:ss');   
 
 
     // var selectQuery = `SELECT * FROM users WHERE emp_id = '${eid}' and password = '${epwd}'`;
@@ -791,20 +792,6 @@ app.post('/login/reset', (req, res) => {
     })    
 })
 
-app.get('/purchase/test', (req, res) => {
-    console.log("Athulya");
-    // var selectQuery = `SELECT * FROM purchaserequest`;
-    // var idQuery = `SELECT COUNT(*) FROM purchaseorder`;
-
-
-    thgpurchase.query('SELECT amount FROM paymentdetails', (err, results, fields) => {
-        // console.log(results[0].unique_id);
-        var xyz = (results[0]);
-        res.send(xyz);
-
-    });
-});
-
 app.post('/ops/admission', (req,res) => {
 
     var branch = req.body.branch;
@@ -928,7 +915,41 @@ app.get('/expense/request/list/:status', (req, res) => {
             data['info'] = results;
             res.send(data);
         }
-    }); 
+    });  
+});
+
+app.get('/purchase/test', (req, res) => {
+    console.log("Athulya");
+    var data = {};
+
+
+/*     thgpurchase.query(`SELECT transcationid FROM paymentdetails`, (err, results, fields) => {
+        // console.log(results[0].unique_id);
+        // var xyz = (results[0]);
+        res.send(results);
+        console.log(results)
+    });
+ */
+    var selectQuery = `SELECT transcationid FROM paymentdetails`;
+
+    thgpurchase.query(selectQuery, (err, results, fields) => {
+        if(err) {
+            console.log(err);
+            data['ack'] = 'Failure';
+            data['reason'] = 'DB Failure'
+            res.send(data);
+        }
+        else {
+            data['ack'] = 'Success';
+            data['count'] = results.length;
+            data['info'] = results;
+            res.send(data);
+        }
+    });  
+
+
+        
+    
     
     
 });

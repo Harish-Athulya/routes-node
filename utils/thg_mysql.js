@@ -4,10 +4,11 @@ var connection = mysql.createConnection({
     user     : 'theatgg6_flutter',
     password : '=sO%KCwGZQYn',
     database : 'theatgg6_sal_subscriber102',
+    timezone : "+00:00"
 });
 
 connection.connect();
 
 console.log('thg_mysql db connected...');
 
-module.exports = connection
+module.exports = connection 

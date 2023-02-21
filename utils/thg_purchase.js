@@ -5,6 +5,7 @@ var connection = mysql.createConnection({
     password : '?pY=2N^ndvAw',
     database : 'athul9z1_cms',
     port : 2083,
+    timeout: 40000
 });
 
 connection.connect();
