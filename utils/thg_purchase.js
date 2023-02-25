@@ -1,11 +1,10 @@
 var mysql      = require('mysql');
 var connection = mysql.createConnection({
-    host     : '216.10.240.89',
-    user     : 'athul9z1_app',
-    password : '?pY=2N^ndvAw',
-    database : 'athul9z1_cms',
-    port : 2083,
-    timeout: 40000
+    host     : '162.241.123.158',
+    user     : 'theatgg6_flutter',
+    password : '=sO%KCwGZQYn',
+    database : 'theatgg6_cms',
+    timezone : "+00:00"
 });
 
 connection.connect();

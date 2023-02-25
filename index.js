@@ -26,7 +26,7 @@ app.use(express.json());
 // app.use('expense/client', client_expense);
 
 app.get("/", (req, res)  => {
-    console.log("ATH");
+    console.log("ATHarish");
     res.send("ASL Test Router");
 });
 
@@ -945,14 +945,10 @@ app.get('/purchase/test', (req, res) => {
             data['info'] = results;
             res.send(data);
         }
-    });  
-
-
-        
-    
-    
-    
+    });      
 });
+
+
 
 
 
