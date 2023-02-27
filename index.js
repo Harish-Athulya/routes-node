@@ -678,7 +678,10 @@ app.post('/food/update', (req,res) => {
     
     // const now = date.format(new Date(), 'YYYY-MM-DD HH:mm:ss');   
 
-    var insertQuery = `INSERT INTO food_tracker (branch, food_date, food_time, food_type, image_name, created_by, menu_items, image_blob) VALUES ('${branch}', STR_TO_DATE('${food_date}', '%d/%m/%Y'), STR_TO_DATE('${food_time}', '%H:%i'), '${food_type}', '${image_name}', '${created_by}', '${menu_items}', '${image_blob}')`;
+    const now = date.format(date.addMinutes(date.addHours(new Date(), 10),30), 'YYYY-MM-DD HH:mm:ss');   
+
+
+    var insertQuery = `INSERT INTO food_tracker (branch, food_date, food_time, food_type, image_name, created_by, menu_items, image_blob, created_at) VALUES ('${branch}', STR_TO_DATE('${food_date}', '%d/%m/%Y'), STR_TO_DATE('${food_time}', '%H:%i'), '${food_type}', '${image_name}', '${created_by}', '${menu_items}', '${image_blob}', '${now}')`;
     
     var data = {};
     // console.log(req.body);
@@ -918,18 +921,11 @@ app.get('/expense/request/list/:status', (req, res) => {
     });  
 });
 
-app.get('/purchase/test', (req, res) => {
+app.get('/purchase/request/list', (req, res) => {
     console.log("Athulya");
     var data = {};
 
 
-/*     thgpurchase.query(`SELECT transcationid FROM paymentdetails`, (err, results, fields) => {
-        // console.log(results[0].unique_id);
-        // var xyz = (results[0]);
-        res.send(results);
-        console.log(results)
-    });
- */
     var selectQuery = `SELECT transcationid FROM paymentdetails`;
 
     thgpurchase.query(selectQuery, (err, results, fields) => {
@@ -948,6 +944,70 @@ app.get('/purchase/test', (req, res) => {
     });      
 });
 
+app.get("/purchase/request/count/:status", (req, res) => {
+    var status = req.params.status;
+    
+    var valid;
+    
+    switch (status) {
+        case 'Pending':
+            valid = 1;
+            break;
+        case 'Approved':
+            valid = 1;
+            break;
+        case 'Acknowledged':
+            valid = 1;
+            break;
+        case 'Transferred':
+            valid = 1;
+            break;
+        case 'Received':
+            valid = 1;
+        break;
+        case 'Rejected':
+            valid = 1;
+        break;
+        default:
+            valid = 0;
+            break;
+    }
+            var data = {};
+            
+            if(valid == 0) {
+                data['ack'] = 'failure';
+                data['status'] = 'Invalid status entered';
+                console.log(data);
+                res.send(data);
+            }
+    
+    else {
+        var statusCount = `SELECT status, COUNT(*) TOTAL FROM expense_track WHERE status = '${status}' GROUP BY 1`;
+    
+        thgmain.query(statusCount, (err, results, fields) => {
+            if(err) {
+                console.log(err);   
+                // var data = {};
+                data['ack'] = 'failure';
+                data['status'] = 'SQL error';
+                console.log(data);
+                res.send(data);
+            }
+            else {
+                // var data = {};
+                data['ack'] = 'success';
+                if(results[0] == null) {
+                    data['status'] = 0;
+                }
+                else {
+                    data['status'] = results[0].TOTAL;
+                }
+                console.log(data);
+                res.send(data);
+            }
+        });
+    }
+});
 
 
 
