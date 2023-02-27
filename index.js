@@ -949,24 +949,32 @@ app.get("/purchase/request/count/:status", (req, res) => {
     
     var valid;
     
+    var statusCount;
+    
     switch (status) {
         case 'Pending':
-            valid = 1;
+                valid = 1;
+                var statusCount = `SELECT status, COUNT(*) Total FROM purchaserequest WHERE status = 'request_pending' GROUP BY 1`;
             break;
         case 'Approved':
             valid = 1;
-            break;
+            var statusCount = `SELECT status, COUNT(*) Total FROM purchaserequest WHERE status = 'approved' GROUP BY 1`;
+        break;
         case 'Acknowledged':
             valid = 1;
+            var statusCount = `SELECT status, COUNT(*) Total FROM purchaseorder WHERE status = 'accounts_approved' GROUP BY 1`;
             break;
         case 'Transferred':
             valid = 1;
+            var statusCount = `SELECT status, COUNT(*) Total FROM paymentdetails WHERE status = 'payment_tranfered_waiting_for_item_delivered' GROUP BY 1`;
             break;
         case 'Received':
             valid = 1;
+            var statusCount = `SELECT status, COUNT(*) Total FROM paymentdetails WHERE status = 'Item_Received' GROUP BY 1`;
         break;
         case 'Rejected':
             valid = 1;
+            var statusCount = `SELECT status,COUNT(*) Total FROM purchaserequest WHERE status = 'Rejected' GROUP BY 1`;
         break;
         default:
             valid = 0;
@@ -982,9 +990,9 @@ app.get("/purchase/request/count/:status", (req, res) => {
             }
     
     else {
-        var statusCount = `SELECT status, COUNT(*) TOTAL FROM expense_track WHERE status = '${status}' GROUP BY 1`;
+        
     
-        thgmain.query(statusCount, (err, results, fields) => {
+        thgpurchase.query(statusCount, (err, results, fields) => {
             if(err) {
                 console.log(err);   
                 // var data = {};
@@ -995,12 +1003,13 @@ app.get("/purchase/request/count/:status", (req, res) => {
             }
             else {
                 // var data = {};
-                data['ack'] = 'success';
+                // data['ack'] = 'success';
+                data['ack'] = status;
                 if(results[0] == null) {
                     data['status'] = 0;
                 }
                 else {
-                    data['status'] = results[0].TOTAL;
+                    data['status'] = results[0].Total;
                 }
                 console.log(data);
                 res.send(data);
