@@ -6,6 +6,7 @@ const date = require('date-and-time');
 const nodemysql = require('node-mysql');
 const PORT = process.env.PORT || 5000; 
 const thgpurchase = require('./utils/thg_purchase');
+var cron = require('node-cron');
 
 // var client_expense = require('./router/client_expense.js');
 
@@ -452,27 +453,6 @@ function setPrice(amount, results) {
 
 app.get("/expense/request", (req, res) => {
     // var testQuery = `SELECT et.req_id, users.full_name "Requestor_Name", et.amount, et.purpose, et.req_date, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT * FROM users) users on et.user_id = users.id ORDER BY RAND() LIMIT 5;`;
-    var expenseQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.req_date, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id`;
-
-    thgmain.query(expenseQuery, (err, results, fields) => {
-        if(err) {
-            console.log(err);   
-            var data = {};
-            data['ack'] = 'failure';
-            res.send(data);
-        }
-        else {
-            var data = {};
-            data['ack'] = 'success';
-            data['info'] = results;
-            console.log(data);
-            res.send(data);
-        }
-    });
-});
-
-app.get("/expense/request", (req, res) => {
-    // var testQuery = `SELECT et.req_id, users.full_name "Requestor_Name", et.amount, et.purpose, et.req_date, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT * FROM users) users on et.user_id = users.id ORDER BY RAND() LIMIT 5;`;
     // var testQuery = `SELECT et.req_id, users.full_name "Requestor_Name", et.amount, et.purpose, et.req_date, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT * FROM users) users on et.user_id = users.id`;
     // var expenseQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id ORDER BY req_date desc`
     var listQuesy = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id ORDER BY req_date desc`
@@ -489,7 +469,7 @@ app.get("/expense/request", (req, res) => {
             var data = {};
             data['ack'] = 'success';
             data['info'] = results;
-            console.log(data);
+            // console.log(data);
             res.send(results);
         } 
     });
@@ -680,13 +660,41 @@ app.post('/food/update', (req,res) => {
 
     const now = date.format(date.addMinutes(date.addHours(new Date(), 10),30), 'YYYY-MM-DD HH:mm:ss');   
 
+    var data = {};
 
+     
     var insertQuery = `INSERT INTO food_tracker (branch, food_date, food_time, food_type, image_name, created_by, menu_items, image_blob, created_at) VALUES ('${branch}', STR_TO_DATE('${food_date}', '%d/%m/%Y'), STR_TO_DATE('${food_time}', '%H:%i'), '${food_type}', '${image_name}', '${created_by}', '${menu_items}', '${image_blob}', '${now}')`;
     
-    var data = {};
     // console.log(req.body);
 
     thgmain.query(insertQuery, (err, results, fields) => {
+        if(err) {
+            console.log(err);
+            data['ack'] = 'Failure';
+            res.send(data);
+        }
+        else {
+            console.log(results);
+            // data['ack'] = 'Success';
+            // data['info'] = results;
+            // res.send(data);
+        }
+    });
+ 
+
+    // data['ack'] = 'test';
+    // res.send(data);
+
+    console.log(branch.toLowerCase());
+    console.log(food_date);
+    console.log(food_type);
+
+    var set_food = food_type.toLowerCase();
+
+
+    var updateQuery = `UPDATE food_defaulters SET ${set_food} = '1' WHERE branch = '${branch}' and food_date = STR_TO_DATE('${food_date}', '%d/%m/%Y')`;
+
+    thgmain.query(updateQuery, (err, results, fields) => {
         if(err) {
             console.log(err);
             data['ack'] = 'Failure';
@@ -699,7 +707,6 @@ app.post('/food/update', (req,res) => {
             res.send(data);
         }
     });
-    
 });
 
 app.post('/food/getupdate', (req,res) => {
@@ -989,9 +996,7 @@ app.get("/purchase/request/count/:status", (req, res) => {
                 res.send(data);
             }
     
-    else {
-        
-    
+    else {    
         thgpurchase.query(statusCount, (err, results, fields) => {
             if(err) {
                 console.log(err);   
@@ -1018,9 +1023,32 @@ app.get("/purchase/request/count/:status", (req, res) => {
     }
 });
 
+app.get('/purchase/request/list', (req,res) => {
+    
+    var purchaseQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.updated_at updated_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id ORDER BY req_date desc`;
+    
+    thgpurchase.query(expenseQuery, (err, results, fields) => {
+        if(err) {
+            console.log(err);   
+            var data = {};
+            data['ack'] = 'failure';
+            res.send(data);
+        }
+        else {
+            var data = {};
+            data['ack'] = 'success';
+            data['info'] = results;
+            console.log(data);
+            res.send(data);
+        } 
+    }) 
+});
 
-
-
+/* 
+    cron.schedule('* * * * *', () => {
+        console.log('cron running each minute');
+    })
+*/
 
 app.listen(PORT, (err) => {
     if(err) console.log(err);
