@@ -1023,6 +1023,54 @@ app.get("/purchase/request/count/:status", (req, res) => {
     }
 });
 
+app.get('/expense/request/multilist', (req, res) => {
+    var arr = (req.query.array.split(',')); // array is a query parameter
+
+    var query_params = '';
+
+    for(let i=0; i<arr.length; i++) {
+        if(i == 0) {
+            query_params += "'" + arr[i] + "'";
+        }
+        else {
+            query_params += " or status = '" + arr[i] + "'";
+        }
+    }
+    console.log(arr);
+    
+    var selectQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.updated_at updated_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id WHERE et.status = ${query_params} ORDER BY req_date desc`
+    
+    thgmain.query(selectQuery, (err, results, fields) => {
+        if(err) {
+            res.send(err);
+        }        
+        else {
+            res.send(results);
+        }
+    });
+});
+
+app.get('/expense/request/datelist', (req, res) => {
+    var fromDate = req.body.fromDate;
+    var toDate = req.body.toDate;
+
+    console.log(fromDate);
+    console.log(toDate);    
+    var selectQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.updated_at updated_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id WHERE et.req_date BETWEEN '${fromDate}' AND '${toDate}' ORDER BY req_date desc`;
+    
+    thgmain.query(selectQuery, (err, results, fields) => {
+        if(err) {
+            res.send(err);
+        }        
+        else {
+            res.send(results);
+        }
+    }); 
+    
+    // res.send('123');
+});
+
+
 app.get('/purchase/request/list', (req,res) => {
     
     var purchaseQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.updated_at updated_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id ORDER BY req_date desc`;
@@ -1044,11 +1092,35 @@ app.get('/purchase/request/list', (req,res) => {
     }) 
 });
 
+
+
+
+
 /* 
     cron.schedule('* * * * *', () => {
         console.log('cron running each minute');
     })
 */
+
+app.post('/food/defaulters/datefilter', (req,res) => {
+    var filter_date = req.food_date;
+
+    var filterQuery = `SELECT * FROM food_defaulters WHERE food_date = '${filter_d}'`;
+    var data = {};
+
+    thgmain.query(filterQuery, (err, results, fields) => {
+        if(err) {
+            data['ack'] = 'failure';
+            res.send(data);
+        }
+        else {
+            console.log(results);
+            data['ack'] = 'success';
+            res.send(data);
+        }     
+    });
+});
+
 
 app.listen(PORT, (err) => {
     if(err) console.log(err);
