@@ -1050,24 +1050,31 @@ app.get('/expense/request/multilist', (req, res) => {
     });
 });
 
-app.get('/expense/request/datelist', (req, res) => {
+app.post('/expense/request/datelist', (req, res) => {
     var fromDate = req.body.fromDate;
     var toDate = req.body.toDate;
 
     console.log(fromDate);
     console.log(toDate);    
-    var selectQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.updated_at updated_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id WHERE et.req_date BETWEEN '${fromDate}' AND '${toDate}' ORDER BY req_date desc`;
+    var selectQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.updated_at updated_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id WHERE et.req_date BETWEEN '${fromDate}' AND '${toDate}' ORDER BY req_date asc`;
     
+    var data = {};
+
     thgmain.query(selectQuery, (err, results, fields) => {
         if(err) {
-            res.send(err);
+            data['ack'] = "Failure";
+            data['reason'] = "Connection Failed...";
+            console.log(err);
+            res.send(data);
         }        
         else {
-            res.send(results);
+            data['ack'] = "Success";
+            data['count'] = results.length;
+            data['info'] = results;
+            res.send(data);
         }
     }); 
     
-    // res.send('123');
 });
 
 
@@ -1091,10 +1098,6 @@ app.get('/purchase/request/list', (req,res) => {
         } 
     }) 
 });
-
-
-
-
 
 /* 
     cron.schedule('* * * * *', () => {
