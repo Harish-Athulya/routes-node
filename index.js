@@ -4,7 +4,7 @@ const thgmain = require('./utils/thg_mysql');
 const thgflutter = require('./utils/thg_flutter');
 const date = require('date-and-time');
 const nodemysql = require('node-mysql');
-const PORT = process.env.PORT || 3000; 
+const PORT = process.env.PORT || 5000; 
 const thgpurchase = require('./utils/thg_purchase');
 var cron = require('node-cron');
 
