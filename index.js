@@ -4,7 +4,7 @@ const thgmain = require('./utils/thg_mysql');
 const thgflutter = require('./utils/thg_flutter');
 const date = require('date-and-time');
 const nodemysql = require('node-mysql');
-const PORT = process.env.PORT || 5000; 
+const PORT = process.env.PORT || 3000; 
 const thgpurchase = require('./utils/thg_purchase');
 var cron = require('node-cron');
 
@@ -1037,15 +1037,22 @@ app.get('/expense/request/multilist', (req, res) => {
         }
     }
     console.log(arr);
+    var data = {};
+
     
     var selectQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.updated_at updated_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id WHERE et.status = ${query_params} ORDER BY req_date desc`
     
     thgmain.query(selectQuery, (err, results, fields) => {
         if(err) {
-            res.send(err);
+            data['ack'] = 'Failure';
+            data['reason'] = 'DB error'
+            res.send(data);
         }        
         else {
-            res.send(results);
+            data['ack'] = 'Success';
+            data['count'] = results.length;
+            data['info'] = results;
+            res.send(data);
         }
     });
 });
@@ -1077,6 +1084,41 @@ app.post('/expense/request/datelist', (req, res) => {
     
 });
 
+app.get('/expense/request/totalcount/:flag', (req, res) => {
+    var flag = req.params.flag;
+    console.log(flag);
+    
+    var data = {};
+
+    if(flag == "Expense") {
+        var expenseQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.updated_at updated_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id ORDER BY req_date desc`;
+
+    }
+    else {
+        data['ack'] = 'success';
+        data['status'] = 'Purchase';
+        data['count'] = 0;
+        console.log(data);
+        res.send(data);
+    }
+
+    
+    thgmain.query(expenseQuery, (err, results, fields) => {
+        if(err) {
+            console.log(err);   
+            data['ack'] = 'failure';
+            res.send(data);
+        }
+        else {
+            data['ack'] = 'success';
+            data['status'] = 'Expense';
+            data['count'] = results.length;
+            console.log(data);
+            res.send(data);
+        } 
+    }) 
+})
+
 
 app.get('/purchase/request/list', (req,res) => {
     
@@ -1106,9 +1148,9 @@ app.get('/purchase/request/list', (req,res) => {
 */
 
 app.post('/food/defaulters/datefilter', (req,res) => {
-    var filter_date = req.food_date;
+    var filter_date = req.body.food_date;
 
-    var filterQuery = `SELECT * FROM food_defaulters WHERE food_date = '${filter_d}'`;
+    var filterQuery = `SELECT branch,breakfast,lunch,snacks,dinner FROM food_defaulters WHERE food_date = '${filter_date}'`;
     var data = {};
 
     thgmain.query(filterQuery, (err, results, fields) => {
@@ -1117,8 +1159,10 @@ app.post('/food/defaulters/datefilter', (req,res) => {
             res.send(data);
         }
         else {
-            console.log(results);
+            // console.log(results);
             data['ack'] = 'success';
+            data['date'] = filter_date;
+            data['info'] = results;
             res.send(data);
         }     
     });
