@@ -8,6 +8,10 @@ const PORT = process.env.PORT || 5000;
 const thgpurchase = require('./utils/thg_purchase');
 var cron = require('node-cron');
 
+
+
+
+
 // var client_expense = require('./router/client_expense.js');
 
 var app = express();
@@ -25,6 +29,10 @@ app.use(express.json());
 
 
 // app.use('expense/client', client_expense);
+
+app.get("/expense", (req,res) => {
+    console.log("Test");
+});
 
 app.get("/", (req, res)  => {
     console.log("ATHarish");
