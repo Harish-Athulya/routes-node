@@ -9,9 +9,6 @@ const thgpurchase = require('./utils/thg_purchase');
 var cron = require('node-cron');
 
 
-
-
-
 // var client_expense = require('./router/client_expense.js');
 
 var app = express();
@@ -30,16 +27,53 @@ app.use(express.json());
 
 // app.use('expense/client', client_expense);
 
-app.get("/expense", (req,res) => {
-    console.log("Test");
-});
-
 app.get("/", (req, res)  => {
     console.log("ATHarish");
     res.send("ASL Test Router");
 });
 
 app.post("/login/validate", function(req, res) {
+    console.log('receiving data...');
+    var eid = req.body.employeeid;
+    var epwd = req.body.password;
+    
+    var selectQuery = `SELECT * FROM app_users WHERE emp_id = '${eid}' and password = '${epwd}'`;
+    
+    thgmain.query(selectQuery, (err, results, fields) => {
+        if(err) {
+            console.log(err);
+            obj['message'] = "Failure";
+            obj['data']['employeeid'] = req.body.employeeid;
+            obj['data']['dept'] = 'Invalid';
+            obj['data']['name'] = 'Invalid';
+            obj['data']['location'] = 'Invalid';
+        } 
+
+        else {
+            var obj = {};      
+            obj['data'] = {};
+            console.log(results);
+            
+            if(results[0] == null) {
+                obj['message'] = "Failure";
+                obj['data']['employeeid'] = req.body.employeeid;
+                obj['data']['dept'] = 'Invalid';
+                obj['data']['name'] = 'Invalid';
+                obj['data']['location'] = 'Invalid';
+            }
+            else {
+                obj['message'] = "Success";
+                obj['data']['employeeid'] = req.body.employeeid;
+                obj['data']['dept'] = results[0].department;
+                obj['data']['name'] = results[0].name;
+                obj['data']['location'] = results[0].location;
+            }
+            res.send(obj);       
+        }
+    })    
+});
+
+app.post("/newlogin/validate", function(req, res) {
     console.log('receiving data...');
     var eid = req.body.employeeid;
     var epwd = req.body.password;
@@ -76,6 +110,8 @@ app.post("/login/validate", function(req, res) {
         }
     })    
 });
+
+
 
 app.post("/login/id", (req, res) => {
     var eid = req.body.employeeid;
@@ -968,9 +1004,9 @@ app.get("/purchase/request/count/:status", (req, res) => {
     
     switch (status) {
         case 'Pending':
-                valid = 1;
-                var statusCount = `SELECT status, COUNT(*) Total FROM purchaserequest WHERE status = 'request_pending' GROUP BY 1`;
-            break;
+            valid = 1;
+            var statusCount = `SELECT status, COUNT(*) Total FROM purchaserequest WHERE status = 'request_pending' GROUP BY 1`;
+        break;
         case 'Approved':
             valid = 1;
             var statusCount = `SELECT status, COUNT(*) Total FROM purchaserequest WHERE status = 'approved' GROUP BY 1`;
@@ -981,7 +1017,7 @@ app.get("/purchase/request/count/:status", (req, res) => {
             break;
         case 'Transferred':
             valid = 1;
-            var statusCount = `SELECT status, COUNT(*) Total FROM paymentdetails WHERE status = 'payment_tranfered_waiting_for_item_delivered' GROUP BY 1`;
+            var statusCount = `SELECT status, COUNT(*) Total FROM paymentdetails WHERE status = 'payment_tranfered_waiting_for item_delivered' GROUP BY 1`;
             break;
         case 'Received':
             valid = 1;
