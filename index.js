@@ -495,31 +495,6 @@ function setPrice(amount, results) {
     return amount;
 }
 
-app.get("/expense/request", (req, res) => {
-    // var testQuery = `SELECT et.req_id, users.full_name "Requestor_Name", et.amount, et.purpose, et.req_date, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT * FROM users) users on et.user_id = users.id ORDER BY RAND() LIMIT 5;`;
-    // var testQuery = `SELECT et.req_id, users.full_name "Requestor_Name", et.amount, et.purpose, et.req_date, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT * FROM users) users on et.user_id = users.id`;
-    // var expenseQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id ORDER BY req_date desc`
-    var listQuesy = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id ORDER BY req_date desc`
-
-
-    thgmain.query(listQuesy, (err, results, fields) => {
-         if(err) {
-            console.log(err);   
-            var data = {};
-            data['ack'] = 'failure';
-            res.send(data);
-        }
-        else {
-            var data = {};
-            data['ack'] = 'success';
-            data['info'] = results;
-            // console.log(data);
-            res.send(results);
-        } 
-    });
-});
-
-
 app.get("/expense/request/count/:status", (req, res) => {
     var status = req.params.status;
     
@@ -995,77 +970,69 @@ app.get('/purchase/request/list', (req, res) => {
     });      
 });
 
-app.get("/purchase/request/count/:status", (req, res) => {
+
+app.get('/purchase/request/count/:status', (req, res) => {
+    
     var status = req.params.status;
-    
     var valid;
-    
-    var statusCount;
-    
+    var statusQuery;
+    var data = {}
+
     switch (status) {
         case 'Pending':
             valid = 1;
-            var statusCount = `SELECT status, COUNT(*) Total FROM purchaserequest WHERE status = 'request_pending' GROUP BY 1`;
-        break;
+            statusQuery = "SELECT COUNT(pro.req_id) status_count FROM (SELECT pr.unique_id 'req_id', pr.status 'prstate' , po.status 'postate' FROM purchaserequest pr LEFT JOIN purchaseorder po on pr.unique_id = po.unique_id WHERE pr.status = 'request_pending') pro LEFT JOIN paymentdetails pd ON pro.req_id = pd.unique_id;"            
+            break;    
         case 'Approved':
             valid = 1;
-            var statusCount = `SELECT status, COUNT(*) Total FROM purchaserequest WHERE status = 'approved' GROUP BY 1`;
-        break;
-        case 'Acknowledged':
-            valid = 1;
-            var statusCount = `SELECT status, COUNT(*) Total FROM purchaseorder WHERE status = 'accounts_approved' GROUP BY 1`;
-            break;
-        case 'Transferred':
-            valid = 1;
-            var statusCount = `SELECT status, COUNT(*) Total FROM paymentdetails WHERE status = 'payment_tranfered_waiting_for item_delivered' GROUP BY 1`;
-            break;
-        case 'Received':
-            valid = 1;
-            var statusCount = `SELECT status, COUNT(*) Total FROM paymentdetails WHERE status = 'Item_Received' GROUP BY 1`;
-        break;
+            statusQuery = "SELECT COUNT(pro.req_id) status_count FROM (SELECT pr.unique_id 'req_id', pr.status 'prstate' , po.status 'postate' FROM purchaserequest pr LEFT JOIN purchaseorder po on pr.unique_id = po.unique_id WHERE pr.status = 'Approved' AND po.status IS NULL) pro LEFT JOIN paymentdetails pd ON pro.req_id = pd.unique_id;"            
+            break;    
         case 'Rejected':
             valid = 1;
-            var statusCount = `SELECT status,COUNT(*) Total FROM purchaserequest WHERE status = 'Rejected' GROUP BY 1`;
-        break;
+            statusQuery = "SELECT COUNT(pro.req_id) status_count FROM (SELECT pr.unique_id 'req_id', pr.status 'prstate' , po.status 'postate' FROM purchaserequest pr LEFT JOIN purchaseorder po on pr.unique_id = po.unique_id WHERE pr.status = 'Rejected') pro LEFT JOIN paymentdetails pd ON pro.req_id = pd.unique_id;"            
+            break;    
+        case 'Acknowledged':
+            valid = 1;
+            statusQuery = "SELECT COUNT(pro.req_id) status_count FROM (SELECT pr.unique_id 'req_id', pr.status 'prstate' , po.status 'postate' FROM purchaserequest pr LEFT JOIN purchaseorder po on pr.unique_id = po.unique_id WHERE pr.status = 'Approved' and po.status = 'accounts_approved') pro LEFT JOIN paymentdetails pd ON pro.req_id = pd.unique_id WHERE pd.status IS NULL;"
+            break;    
+        case 'Transferred':
+            valid = 1;
+            statusQuery = "SELECT COUNT(pro.req_id) status_count FROM (SELECT pr.unique_id 'req_id', pr.status 'prstate' , po.status 'postate' FROM purchaserequest pr LEFT JOIN purchaseorder po on pr.unique_id = po.unique_id WHERE pr.status = 'Approved' and po.status = 'accounts_approved') pro LEFT JOIN paymentdetails pd ON pro.req_id = pd.unique_id WHERE pd.status = 'payment_tranfered_waiting_for item_delivered';"
+            break;    
+        case 'Received':
+            valid = 1;
+            statusQuery = "SELECT COUNT(pro.req_id) status_count FROM (SELECT pr.unique_id 'req_id', pr.status 'prstate' , po.status 'postate' FROM purchaserequest pr LEFT JOIN purchaseorder po on pr.unique_id = po.unique_id WHERE pr.status = 'Approved' and po.status = 'accounts_approved') pro LEFT JOIN paymentdetails pd ON pro.req_id = pd.unique_id WHERE pd.status = 'Item_Received';"
+            break;    
         default:
             valid = 0;
             break;
     }
-            var data = {};
-            
-            if(valid == 0) {
-                data['ack'] = 'failure';
-                data['status'] = 'Invalid status entered';
-                console.log(data);
-                res.send(data);
-            }
+
+    if(valid == 0) {
+        data['ack'] = 'Failure';
+        data['reason'] = 'Invalid status value';
+        res.send(data);
+    }
     
-    else {    
-        thgpurchase.query(statusCount, (err, results, fields) => {
+    else {
+        thgpurchase.query(statusQuery, (err, results, fields) => {
             if(err) {
-                console.log(err);   
-                // var data = {};
-                data['ack'] = 'failure';
-                data['status'] = 'SQL error';
-                console.log(data);
+                data['ack'] = 'Failure';
+                data['reason'] = 'SQL error';
                 res.send(data);
             }
             else {
-                // var data = {};
-                // data['ack'] = 'success';
-                data['ack'] = status;
-                if(results[0] == null) {
-                    data['status'] = 0;
-                }
-                else {
-                    data['status'] = results[0].Total;
-                }
-                console.log(data);
+                data['ack'] = 'Success';
+                data['status'] = results[0].status_count;
                 res.send(data);
             }
         });
     }
+    
 });
+
+
+
 
 app.get('/expense/request/multilist', (req, res) => {
     var arr = (req.query.array.split(',')); // array is a query parameter
