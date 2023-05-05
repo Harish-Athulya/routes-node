@@ -4,7 +4,8 @@ var connection = mysql.createConnection({
     user     : 'theatgg6_flutter',
     password : '=sO%KCwGZQYn',
     database : 'theatgg6_cms',
-    timezone : "+00:00"
+    timezone : "+00:00",
+    multipleStatements: true
 });
 
 connection.connect();

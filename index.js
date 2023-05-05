@@ -111,8 +111,7 @@ app.post("/newlogin/validate", function(req, res) {
     })    
 });
 
-
-
+ 
 app.post("/login/id", (req, res) => {
     var eid = req.body.employeeid;
 
@@ -296,6 +295,15 @@ app.get("/occupancy/count/:id", (req, res) => {
             break;
         case "Kasavanahalli":
             branch_id = 5;
+            break;
+        case "Kochi":
+            branch_id = 7;
+            break;
+        case "Coimbatore":
+            branch_id = 8;
+            break;
+        case "Maduravoyal":
+            branch_id = 9;
             break;
         default:
             branch_id = 999;
@@ -565,6 +573,7 @@ app.post("/expense/request/approve", function(req, res) {
     var req_id = req.body.req_id;
     var status = req.body.status;
     var eid = req.body.eid;
+    var isExpense = req.body.isExpense;
 
     var column;
 
@@ -587,33 +596,49 @@ app.post("/expense/request/approve", function(req, res) {
         }
         
         
-        console.log(req_id);
-        console.log(status);
-        console.log(eid);
+    console.log(req_id);
+    console.log(status);
+    console.log(eid);
         
     const now = date.format(date.addMinutes(date.addHours(new Date(), 10),30), 'YYYY-MM-DD HH:mm:ss');   
-    // const now = date.format(new Date(), 'YYYY-MM-DD HH:mm:ss');   
 
-
-    // var selectQuery = `SELECT * FROM users WHERE emp_id = '${eid}' and password = '${epwd}'`;
-    var update_query = `UPDATE expense_track SET status='${status}', ${column}='${now}', ack_by='${eid}'  WHERE req_id = '${req_id}'`;
+    if(isExpense) {
+        var data = {};      
+        var update_query = `UPDATE expense_track SET status='${status}', ${column}='${now}', ack_by='${eid}'  WHERE req_id = '${req_id}'`;
+        
+        thgmain.query(update_query, (err, results, fields) => {
+            if(err) {
+                console.log(err);
+                data['ack'] = "Failure";
+                data['message'] = "SQL error";
+            } 
+            else {
+                console.log(results);
+                data['ack'] = "Success";
+                data['message'] = "Status updated"
+            }
+            res.send(data);       
+        });    
+    }
     
-    var data = {};      
-    
-
-    thgmain.query(update_query, (err, results, fields) => {
-        if(err) {
-            console.log(err);
-            data['ack'] = "Failure";
-            data['message'] = "SQL error";
-        } 
-        else {
-            console.log(results);
-            data['ack'] = "Success";
-            data['message'] = "Status updated"
-        }
-        res.send(data);       
-    })    
+    else {
+        var data = {};
+        var update_query = `UPDATE purchaserequest SET status='${status}', updated_at='${now}', ack_by='${eid}'  WHERE unique_id = '${req_id}'`;
+        
+        thgpurchase.query(update_query, (err, results, fields) => {
+            if(err) {
+                console.log(err);
+                data['ack'] = "Failure";
+                data['message'] = "SQL error";
+            } 
+            else {
+                console.log(results);
+                data['ack'] = "Success";
+                data['message'] = "Status updated"
+            }
+            res.send(data);       
+        });       
+    }
 });
 
 app.post("/expense/request/clarity", (req, res) => {
@@ -649,7 +674,7 @@ app.get('/expense/request/list', (req,res) => {
     
     thgmain.query(expenseQuery, (err, results, fields) => {
         if(err) {
-            console.log(err);   
+            // console.log(err);   
             var data = {};
             data['ack'] = 'failure';
             res.send(data);
@@ -658,7 +683,7 @@ app.get('/expense/request/list', (req,res) => {
             var data = {};
             data['ack'] = 'success';
             data['info'] = results;
-            console.log(data);
+            // console.log(data);
             res.send(data);
         } 
     }) 
@@ -712,7 +737,7 @@ app.post('/food/update', (req,res) => {
 
 
     var updateQuery = `UPDATE food_defaulters SET ${set_food} = '1' WHERE branch = '${branch}' and food_date = STR_TO_DATE('${food_date}', '%d/%m/%Y')`;
-
+  
     thgmain.query(updateQuery, (err, results, fields) => {
         if(err) {
             console.log(err);
@@ -901,11 +926,14 @@ app.get('/ops/validate/rooms', (req, res) => {
     
 })
 
-app.get('/expense/request/list/:status', (req, res) => {
+app.post('/expense/request/list', (req, res) => {
 
-    var status = req.params.status;
+    var status = req.body.status;
+    var isExpense = req.body.isExpense;
+
     var data = {};
     var valid;
+    console.log(isExpense);
 
     console.log(`sending ${status}`);
 
@@ -929,47 +957,41 @@ app.get('/expense/request/list/:status', (req, res) => {
         res.send(data);
     }
 
-    var selectQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.updated_at updated_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id WHERE et.status = '${status}' ORDER BY req_date desc`
-
-
-    thgmain.query(selectQuery, (err, results, fields) => {
-        if(err) {
-            data['ack'] = 'Failure';
-            data['reason'] = 'DB Failure'
-            res.send(data);
-        }
-        else {
-            data['ack'] = 'Success';
-            data['count'] = results.length;
-            data['info'] = results;
-            res.send(data);
-        }
-    });  
+    if(isExpense) 
+    {
+        var selectQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.updated_at updated_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id WHERE et.status = '${status}' ORDER BY req_date desc`;
+        thgmain.query(selectQuery, (err, results, fields) => {
+            if(err) {
+                data['ack'] = 'Failure';
+                data['reason'] = 'DB Failure'
+                res.send(data);
+            }
+            else {
+                data['ack'] = 'Success';
+                data['count'] = results.length;
+                data['info'] = results;
+                res.send(data);
+            }
+        });  
+    }
+    else {
+        var selectQuery = `CREATE TEMPORARY TABLE IF NOT EXISTS tPurReq AS SELECT DISTINCT pro.req_id, pro.name "Requestor_Name", pro.department "dept", pro.price "amount", CONCAT(pro.equipment, " - Quantity- ", pro.qty) 'purpose', pro.req_date, pro.updated_at 'approved_at', pro.upAt 'ack_at', pd.created_at 'transfer_at', pd.updated_at 'received_at', pro.updated_at, IF(STRCMP(pd.status, "Item_Received") = 0, "Received", IF(STRCMP(pd.status, "payment_tranfered_waiting_for item_delivered")= 0, "Transferred", IF(STRCMP(pro.postate, "accounts_approved") = 0, "Acknowledged", IF(STRCMP(pro.prstate, "Approved") = 0, "Approved", IF(STRCMP(pro.prstate, "Rejected") = 0, "Rejected", "Pending"))))) "status" FROM (SELECT pr.id, pr.unique_id 'req_id', pr.price, pr.qty, pr.department, pr.equipment, pr.name, pr.status 'prstate' , po.status 'postate', pr.created_at 'req_date', pr.updated_at, po.updated_at "upAt" FROM purchaserequest pr LEFT JOIN purchaseorder po on pr.unique_id = po.unique_id) pro LEFT JOIN paymentdetails pd ON pro.req_id = pd.unique_id ORDER BY pro.id DESC; SELECT * FROM tPurReq WHERE status = '${status}';`;
+        
+        thgpurchase.query(selectQuery, (err, results, fields) => {
+            if(err) {
+                data['ack'] = 'Failure';
+                data['reason'] = 'DB Failure'
+                res.send(data);
+            }
+            else {
+                data['ack'] = 'Success';
+                data['count'] = results[1].length;
+                data['info'] = results[1];
+                res.send(data);
+            }
+        });  
+    }
 });
-
-app.get('/purchase/request/list', (req, res) => {
-    console.log("Athulya");
-    var data = {};
-
-
-    var selectQuery = `SELECT transcationid FROM paymentdetails`;
-
-    thgpurchase.query(selectQuery, (err, results, fields) => {
-        if(err) {
-            console.log(err);
-            data['ack'] = 'Failure';
-            data['reason'] = 'DB Failure'
-            res.send(data);
-        }
-        else {
-            data['ack'] = 'Success';
-            data['count'] = results.length;
-            data['info'] = results;
-            res.send(data);
-        }
-    });      
-});
-
 
 app.get('/purchase/request/count/:status', (req, res) => {
     
@@ -989,7 +1011,7 @@ app.get('/purchase/request/count/:status', (req, res) => {
             break;    
         case 'Rejected':
             valid = 1;
-            statusQuery = "SELECT COUNT(pro.req_id) status_count FROM (SELECT pr.unique_id 'req_id', pr.status 'prstate' , po.status 'postate' FROM purchaserequest pr LEFT JOIN purchaseorder po on pr.unique_id = po.unique_id WHERE pr.status = 'Rejected') pro LEFT JOIN paymentdetails pd ON pro.req_id = pd.unique_id;"            
+            statusQuery = "SELECT COUNT(pro.req_id) status_count FROM (SELECT pr.unique_id 'req_id', pr.status 'prstate' , po.status 'postate' FROM purchaserequest pr LEFT JOIN purchaseorder po on pr.unique_id = po.unique_id WHERE pr.status = 'Rejected') pro LEFT JOIN paymentdetails pd ON pro.req_id = pd.unique_id;"
             break;    
         case 'Acknowledged':
             valid = 1;
@@ -1031,11 +1053,10 @@ app.get('/purchase/request/count/:status', (req, res) => {
     
 });
 
-
-
-
-app.get('/expense/request/multilist', (req, res) => {
+app.post('/expense/request/multilist', (req, res) => {
     var arr = (req.query.array.split(',')); // array is a query parameter
+
+    var isExpense = req.body.isExpense;
 
     var query_params = '';
 
@@ -1050,48 +1071,89 @@ app.get('/expense/request/multilist', (req, res) => {
     console.log(arr);
     var data = {};
 
-    
-    var selectQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.updated_at updated_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id WHERE et.status = ${query_params} ORDER BY req_date desc`
-    
-    thgmain.query(selectQuery, (err, results, fields) => {
-        if(err) {
-            data['ack'] = 'Failure';
-            data['reason'] = 'DB error'
-            res.send(data);
-        }        
-        else {
-            data['ack'] = 'Success';
-            data['count'] = results.length;
-            data['info'] = results;
-            res.send(data);
-        }
-    });
+    if(isExpense) {
+        var selectQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.updated_at updated_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id WHERE et.status = ${query_params} ORDER BY req_date desc`;
+        // console.log(selectQuery);
+        
+        thgmain.query(selectQuery, (err, results, fields) => {
+            if(err) {
+                data['ack'] = 'Failure';
+                data['reason'] = 'DB error'
+                res.send(data);
+            }        
+            else {
+                data['ack'] = 'Success';
+                data['count'] = results.length;
+                data['info'] = results;
+                res.send(data);
+            }
+        });
+    }
+    else {
+        var selectQuery = `CREATE TEMPORARY TABLE IF NOT EXISTS tPurReq AS SELECT DISTINCT pro.req_id, pro.name "Requestor_Name", pro.department "dept", pro.price "amount", CONCAT(pro.equipment, " - Quantity- ", pro.qty) 'purpose', pro.req_date, pro.updated_at 'approved_at', pro.upAt 'ack_at', pd.created_at 'transfer_at', pd.updated_at 'received_at', pro.updated_at, IF(STRCMP(pd.status, "Item_Received") = 0, "Received", IF(STRCMP(pd.status, "payment_tranfered_waiting_for item_delivered")= 0, "Transferred", IF(STRCMP(pro.postate, "accounts_approved") = 0, "Acknowledged", IF(STRCMP(pro.prstate, "Approved") = 0, "Approved", IF(STRCMP(pro.prstate, "Rejected") = 0, "Rejected", "Pending"))))) "status" FROM (SELECT pr.id, pr.unique_id 'req_id', pr.price, pr.qty, pr.department, pr.equipment, pr.name, pr.status 'prstate' , po.status 'postate', pr.created_at 'req_date', pr.updated_at, po.updated_at "upAt" FROM purchaserequest pr LEFT JOIN purchaseorder po on pr.unique_id = po.unique_id) pro LEFT JOIN paymentdetails pd ON pro.req_id = pd.unique_id ORDER BY pro.id DESC; SELECT * FROM tPurReq WHERE status = ${query_params};`;
+        // console.log(selectQuery);
+        thgpurchase.query(selectQuery, (err, results, fields) => {
+            if(err) {
+                data['ack'] = 'Failure';
+                data['reason'] = 'DB error'
+                console.log(err);
+                res.send(data);
+            }        
+            else {
+                data['ack'] = 'Success';
+                data['count'] = results[1].length;
+                data['info'] = results[1];
+                res.send(data);
+            }
+        });
+    }
 });
 
 app.post('/expense/request/datelist', (req, res) => {
     var fromDate = req.body.fromDate;
     var toDate = req.body.toDate;
+    var isExpense = req.body.isExpense;
 
     console.log(fromDate);
     console.log(toDate);    
-    var selectQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.updated_at updated_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id WHERE et.req_date BETWEEN '${fromDate}' AND '${toDate}' ORDER BY req_date asc`;
-    
     var data = {};
-
-    thgmain.query(selectQuery, (err, results, fields) => {
-        if(err) {
-            data['ack'] = "Failure";
-            data['reason'] = "Connection Failed...";
-            console.log(err);
-            res.send(data);
-        }        
-        else {
-            data['ack'] = "Success";
-            data['count'] = results.length;
-            data['info'] = results;
-            res.send(data);
-        }
-    }); 
+    
+    if(isExpense) {
+        var selectQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.updated_at updated_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id WHERE et.req_date BETWEEN '${fromDate}' AND '${toDate}' ORDER BY req_date asc`;
+        
+        thgmain.query(selectQuery, (err, results, fields) => {
+            if(err) {
+                data['ack'] = "Failure";
+                data['reason'] = "Connection Failed...";
+                console.log(err);
+                res.send(data);
+            }        
+            else {
+                data['ack'] = "Success";
+                data['count'] = results.length;
+                data['info'] = results;
+                res.send(data);
+            }
+        }); 
+    }
+    else {
+        var selectQuery = `SELECT DISTINCT pro.req_id, pro.name "Requestor_Name", pro.department "dept", pro.price "amount", CONCAT(pro.equipment, " - Quantity- ", pro.qty) 'purpose', pro.req_date, pro.updated_at 'approved_at', pro.upAt 'ack_at', pd.created_at 'transfer_at', pd.updated_at 'received_at', pro.updated_at, IF(STRCMP(pd.status, "Item_Received") = 0, "Received", IF(STRCMP(pd.status, "payment_tranfered_waiting_for item_delivered")= 0, "Transferred", IF(STRCMP(pro.postate, "accounts_approved") = 0, "Acknowledged", IF(STRCMP(pro.prstate, "Approved") = 0, "Approved", IF(STRCMP(pro.prstate, "Rejected") = 0, "Rejected", "Pending"))))) "status" FROM (SELECT pr.id, pr.unique_id 'req_id', pr.price, pr.qty, pr.department, pr.equipment, pr.name, pr.status 'prstate' , po.status 'postate', pr.created_at 'req_date', pr.updated_at, po.updated_at 'upAt' FROM purchaserequest pr LEFT JOIN purchaseorder po on pr.unique_id = po.unique_id) pro LEFT JOIN paymentdetails pd ON pro.req_id = pd.unique_id WHERE pro.req_date BETWEEN '${fromDate}' AND '${toDate}' ORDER BY pro.id DESC;`;
+            
+        thgpurchase.query(selectQuery, (err, results, fields) => {
+            if(err) {
+                data['ack'] = "Failure";
+                data['reason'] = "Connection Failed...";
+                console.log(err);
+                res.send(data);
+            }        
+            else {
+                data['ack'] = "Success";
+                data['count'] = results.length;
+                data['info'] = results;
+                res.send(data);
+            }
+        }); 
+    }
     
 });
 
@@ -1103,65 +1165,69 @@ app.get('/expense/request/totalcount/:flag', (req, res) => {
 
     if(flag == "Expense") {
         var expenseQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.updated_at updated_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id ORDER BY req_date desc`;
-
+        thgmain.query(expenseQuery, (err, results, fields) => {
+            if(err) {
+                console.log(err);   
+                data['ack'] = 'failure';
+                res.send(data);
+            }
+            else {
+                data['ack'] = 'success';
+                data['status'] = 'Expense';
+                data['count'] = results.length;
+                console.log(data);
+                res.send(data);
+            } 
+        }) 
     }
     else {
-        data['ack'] = 'success';
-        data['status'] = 'Purchase';
-        data['count'] = 0;
-        console.log(data);
-        res.send(data);
+        var purchaseQuery = `SELECT DISTINCT pro.req_id, pro.name "Requestor_Name", pro.department "dept", pro.price "amount", CONCAT(pro.equipment, " - Quantity- ", pro.qty) 'purpose', pro.req_date, pro.updated_at 'approved_at', pro.upAt 'ack_at', pd.created_at 'transfer_at', pd.updated_at 'received_at', pro.updated_at, IF(STRCMP(pd.status, "Item_Received") = 0, "Received", IF(STRCMP(pd.status, "payment_tranfered_waiting_for item_delivered")= 0, "Transferred", IF(STRCMP(pro.postate, "accounts_approved") = 0, "Acknowledged", IF(STRCMP(pro.prstate, "Approved") = 0, "Approved", IF(STRCMP(pro.prstate, "Rejected") = 0, "Rejected", "Pending"))))) "status" FROM (SELECT pr.id, pr.unique_id 'req_id', pr.price, pr.qty, pr.department, pr.equipment, pr.name, pr.status 'prstate' , po.status 'postate', pr.created_at 'req_date', pr.updated_at, po.updated_at "upAt" FROM purchaserequest pr LEFT JOIN purchaseorder po on pr.unique_id = po.unique_id) pro LEFT JOIN paymentdetails pd ON pro.req_id = pd.unique_id ORDER BY pro.id DESC;`;
+        thgpurchase.query(purchaseQuery, (err, results, fields) => {
+            if(err) {
+                console.log(err);   
+                data['ack'] = 'failure';
+                res.send(data);
+            }
+            else {
+                data['ack'] = 'success';
+                data['status'] = 'Purchase';
+                data['count'] = results.length;
+                console.log(data);
+                res.send(data);
+            } 
+        }) 
     }
 
     
-    thgmain.query(expenseQuery, (err, results, fields) => {
-        if(err) {
-            console.log(err);   
-            data['ack'] = 'failure';
-            res.send(data);
-        }
-        else {
-            data['ack'] = 'success';
-            data['status'] = 'Expense';
-            data['count'] = results.length;
-            console.log(data);
-            res.send(data);
-        } 
-    }) 
 })
 
+app.get('/purchase/request/list', (req, res) => {
+    // var spQuery = `CALL getPurchaseList()`;
+    var spQuery = `SELECT DISTINCT pro.req_id, pro.name "Requestor_Name", pro.department "dept", pro.price "amount", CONCAT(pro.equipment, " - Quantity- ", pro.qty) 'purpose', pro.req_date, pro.updated_at 'approved_at', pro.upAt 'ack_at', pd.created_at 'transfer_at', pd.updated_at 'received_at', pro.updated_at, IF(STRCMP(pd.status, "Item_Received") = 0, "Received", IF(STRCMP(pd.status, "payment_tranfered_waiting_for item_delivered")= 0, "Transferred", IF(STRCMP(pro.postate, "accounts_approved") = 0, "Acknowledged", IF(STRCMP(pro.prstate, "Approved") = 0, "Approved", IF(STRCMP(pro.prstate, "Rejected") = 0, "Rejected", "Pending"))))) "status" FROM (SELECT pr.id, pr.unique_id 'req_id', pr.price, pr.qty, pr.department, pr.equipment, pr.name, pr.status 'prstate' , po.status 'postate', pr.created_at 'req_date', pr.updated_at, po.updated_at "upAt" FROM purchaserequest pr LEFT JOIN purchaseorder po on pr.unique_id = po.unique_id) pro LEFT JOIN paymentdetails pd ON pro.req_id = pd.unique_id ORDER BY pro.id DESC;`;
+    var data = {};
 
-app.get('/purchase/request/list', (req,res) => {
-    
-    var purchaseQuery = `SELECT et.req_id, user.full_name "Requestor_Name", et.dept, et.amount, et.purpose, et.created_at req_date, et.approved_at, et.ack_at, et.transfer_at, et.received_at, et.updated_at updated_at, et.status FROM (SELECT * FROM expense_track) et JOIN (SELECT u.id, u.full_name FROM (SELECT * FROM expense_users) eu JOIN (SELECT * FROM users) u ON eu.user_id = u.id) user on et.user_id = user.id ORDER BY req_date desc`;
-    
-    thgpurchase.query(expenseQuery, (err, results, fields) => {
+    thgpurchase.query(spQuery, (err, results, fields) => {
         if(err) {
-            console.log(err);   
-            var data = {};
-            data['ack'] = 'failure';
+            data['ack'] = 'Failure';
+            // console.log(data);
             res.send(data);
         }
-        else {
-            var data = {};
-            data['ack'] = 'success';
+        else { 
+            data['ack'] = 'Success';
+            data['count'] = results.length
             data['info'] = results;
-            console.log(data);
+            console.log("Fetching purchase requests");
             res.send(data);
-        } 
-    }) 
-});
-
-/* 
-    cron.schedule('* * * * *', () => {
-        console.log('cron running each minute');
-    })
-*/
+        }
+    });
+})
 
 app.post('/food/defaulters/datefilter', (req,res) => {
     var filter_date = req.body.food_date;
+    console.log('Fetching food defaulters list');
 
-    var filterQuery = `SELECT branch,breakfast,lunch,snacks,dinner FROM food_defaulters WHERE food_date = '${filter_date}'`;
+    // var filterQuery = `SELECT branch,breakfast,lunch,snacks,dinner FROM food_defaulters WHERE food_date = '${filter_date}' and branch!= 'Coimbatore' ORDER BY 1;`;
+    var filterQuery = `SELECT branch,breakfast,lunch,snacks,dinner FROM food_defaulters WHERE food_date = '${filter_date}' ORDER BY 1;`;
     var data = {};
 
     thgmain.query(filterQuery, (err, results, fields) => {
@@ -1170,7 +1236,6 @@ app.post('/food/defaulters/datefilter', (req,res) => {
             res.send(data);
         }
         else {
-            // console.log(results);
             data['ack'] = 'success';
             data['date'] = filter_date;
             data['info'] = results;
@@ -1178,6 +1243,36 @@ app.post('/food/defaulters/datefilter', (req,res) => {
         }     
     });
 });
+
+var emp_name = "Admin";
+
+app.get("/test/ackby", (req, res) => {
+    var emp_name = approvedBy();
+
+    res.send(emp_name);
+});
+
+function approvedBy(eid) {
+    block1:
+        if(eid == null) {
+            break block1;
+        }
+        console.log("Not null");
+        var nameQuery = `SELECT name FROM app_users WHERE emp_id = '${eid}'`;
+        console.log(nameQuery);
+
+        thgmain.query(nameQuery, (err, results, fields) => {
+            console.log(results[0].name);        
+            emp_name = results[0].name;
+        }); 
+}
+
+
+/* 
+    cron.schedule('* * * * *', () => {
+        console.log('cron running each minute');
+    })
+*/
 
 
 app.listen(PORT, (err) => {
