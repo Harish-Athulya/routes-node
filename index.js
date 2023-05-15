@@ -590,7 +590,7 @@ app.post("/expense/request/approve", function(req, res) {
     console.log(status);
     console.log(eid);
         
-    const now = date.format(date.addMinutes(date.addHours(new Date(), 5),30), 'YYYY-MM-DD', true);   
+    const now = date.format(date.addMinutes(date.addHours(new Date(), 5),30), 'YYYY-MM-DD HH:mm:ss', true);   
 
     if(isExpense) {
         var data = {};      
@@ -635,8 +635,7 @@ app.post("/expense/request/clarity", (req, res) => {
     var req_id = req.body.req_id;
     var eid = req.body.eid;
 
-    const now = date.format(date.addMinutes(date.addHours(new Date(), 5),30), 'YYYY-MM-DD', true);   
-    
+    const now = date.format(date.addMinutes(date.addHours(new Date(), 5),30), 'YYYY-MM-DD HH:mm:ss', true);       
     var clarityQuery = `INSERT INTO expense_clarity (req_id, user_id, clarity, created_at) VALUES('${req_id}', '${eid}', 'Explain in detail', '${now}')`
     
     thgmain.query(clarityQuery, (err, results, fields) => {
@@ -692,11 +691,8 @@ app.post('/food/update', (req,res) => {
     
     // const now = date.format(date.addMinutes(date.addHours(new Date(), 5),30), 'YYYY-MM-DD', true);   
 
-    const now = date.format(date.addMinutes(date.addHours(new Date(), 5),30), 'YYYY-MM-DD', true);   
-
-    var data = {};
-
-     
+    const now = date.format(date.addMinutes(date.addHours(new Date(), 5),30), 'YYYY-MM-DD HH:mm:ss', true);   
+    var data = {};     
     var insertQuery = `INSERT INTO food_tracker (branch, food_date, food_time, food_type, image_name, created_by, menu_items, image_blob, created_at) VALUES ('${branch}', STR_TO_DATE('${food_date}', '%d/%m/%Y'), STR_TO_DATE('${food_time}', '%H:%i'), '${food_type}', '${image_name}', '${created_by}', '${menu_items}', '${image_blob}', '${now}')`;
     
     // console.log(req.body);
