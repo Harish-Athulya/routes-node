@@ -17,16 +17,6 @@ app.use(bodyParser.json({limit: '50mb'}));
 app.use(bodyParser.urlencoded({limit: '50mb', extended: true}));
 app.use(express.json());
 
-
-
-// app.use(bodyParser.json({limit: '50mb', extended: true}));
-// app.use(bodyParser.urlencoded({limit: "50mb", extended: true, parameterLimit:50000}));
-// app.use(bodyParser.text({ limit: '200mb' }));
-
-
-
-// app.use('expense/client', client_expense);
-
 app.get("/", (req, res)  => {
     console.log("ATHarish");
     res.send("ASL Test Router");
@@ -600,7 +590,7 @@ app.post("/expense/request/approve", function(req, res) {
     console.log(status);
     console.log(eid);
         
-    const now = date.format(date.addMinutes(date.addHours(new Date(), 10),30), 'YYYY-MM-DD HH:mm:ss');   
+    const now = date.format(date.addMinutes(date.addHours(new Date(), 5),30), 'YYYY-MM-DD', true);   
 
     if(isExpense) {
         var data = {};      
@@ -645,7 +635,7 @@ app.post("/expense/request/clarity", (req, res) => {
     var req_id = req.body.req_id;
     var eid = req.body.eid;
 
-    const now = date.format(new Date(), 'YYYY-MM-DD HH:mm:ss');   
+    const now = date.format(date.addMinutes(date.addHours(new Date(), 5),30), 'YYYY-MM-DD', true);   
     
     var clarityQuery = `INSERT INTO expense_clarity (req_id, user_id, clarity, created_at) VALUES('${req_id}', '${eid}', 'Explain in detail', '${now}')`
     
@@ -700,9 +690,9 @@ app.post('/food/update', (req,res) => {
     var image_blob = req.body.image_blob;
     var menu_items = req.body.menu_items;
     
-    // const now = date.format(new Date(), 'YYYY-MM-DD HH:mm:ss');   
+    // const now = date.format(date.addMinutes(date.addHours(new Date(), 5),30), 'YYYY-MM-DD', true);   
 
-    const now = date.format(date.addMinutes(date.addHours(new Date(), 10),30), 'YYYY-MM-DD HH:mm:ss');   
+    const now = date.format(date.addMinutes(date.addHours(new Date(), 5),30), 'YYYY-MM-DD', true);   
 
     var data = {};
 
@@ -1227,7 +1217,7 @@ app.post('/food/defaulters/datefilter', (req,res) => {
     console.log('Fetching food defaulters list');
 
     // var filterQuery = `SELECT branch,breakfast,lunch,snacks,dinner FROM food_defaulters WHERE food_date = '${filter_date}' and branch!= 'Coimbatore' ORDER BY 1;`;
-    var filterQuery = `SELECT branch,breakfast,lunch,snacks,dinner FROM food_defaulters WHERE food_date = '${filter_date}' ORDER BY 1;`;
+    var filterQuery = `SELECT branch,breakfast,lunch,snacks,dinner FROM food_defaulters WHERE food_date = '${filter_date}' and branch!= 'Maduravoyal' and branch!= 'Hyderabad' ORDER BY 1;`;
     var data = {};
 
     thgmain.query(filterQuery, (err, results, fields) => {
@@ -1267,14 +1257,44 @@ function approvedBy(eid) {
         }); 
 }
 
+    cron.schedule('0 0 * * *', () => {
+        var selectBranches = `SELECT branch_name FROM master_branches`;
+        const now = date.format(date.addMinutes(date.addHours(new Date(), 5),30), 'YYYY-MM-DD', true);   
+        console.log(now);
+        
+        var branches = [];
 
-/* 
-    cron.schedule('* * * * *', () => {
-        console.log('cron running each minute');
-    })
-*/
+        thgmain.query(selectBranches, (err, results, fields) => {
+            if(err) {
+                console.log(err);
+            }
+            else {
+                results.forEach(element => {
+                    branches.push(element.branch_name);
+                    var branchName = element.branch_name;
 
+                    var insertQuery = `INSERT INTO food_defaulters (branch, food_date, breakfast, lunch, snacks, dinner) VALUES ('${branchName}', '${now}', '0', '0', '0', '0')`;
+                    console.log(insertQuery);
 
+                    thgmain.query(insertQuery, (err2, res2, fields2) => {
+                        if(err2) {
+                            console.log(err2);
+                        }
+                        else {
+                            console.log(res2);
+                        }
+                    });
+                });
+                console.log(branches);
+            }
+        })
+        console.log(`cron ran at ${now}`);
+    }, {
+        scheduled: true,
+        timezone: "Asia/Kolkata"
+    }
+    )
+ 
 app.listen(PORT, (err) => {
     if(err) console.log(err);
     console.log("Server listening on", PORT);
