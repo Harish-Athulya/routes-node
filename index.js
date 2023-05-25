@@ -264,47 +264,11 @@ function setBedOccupiedCount(value) {
     return bedOcp;
 }
 
-app.get("/occupancy/count/:id", (req, res) => {
-    var branch = req.params.id;
-    var branch_id;
+app.post("/occupancy/count/each", (req, res) => {
+    var branch = req.body.branch_name;
+    var branch_id = req.body.branch_id;
     var data = {};
     data["branch"] = branch;
-
-    switch (branch) {
-        case "Perungudi":
-            branch_id = 1;
-            break;
-        case "Arumbakkam":
-            branch_id = 2;
-            break;
-        case "Neelankarai":
-            branch_id = 3;
-            break;
-        case "Pallavaram":
-            branch_id = 4;
-            break;
-        case "Kasavanahalli":
-            branch_id = 5;
-            break;
-        case "Kochi":
-            branch_id = 7;
-            break;
-        case "Coimbatore":
-            branch_id = 8;
-            break;
-        case "Maduravoyal":
-            branch_id = 9;
-            break;
-        default:
-            branch_id = 999;
-            break;
-    }
-
-    if(branch_id == 999) {
-        data["ack"] = "Failure";
-        data["reason"] = "Invalid Branch";
-        res.send(data);
-    }
 
     var branchCountQuery = `SELECT COUNT(distinct room_number) AS branch_count FROM master_beds mb join master_rooms mr on mb.room_id=mr.id where mr.branch_id in (${branch_id}) and mb.status='Active'`;
     var branchVacantQuery = `SELECT COUNT(*) AS branch_vacant from master_beds join master_rooms on master_beds.room_id=master_rooms.id where master_rooms.branch_id=${branch_id} and master_beds.status='Active' and master_beds.id not in (select bed_id from patient_schedules where schedule_date=curdate() and patient_id in(select id from patients where branch_id=${branch_id}) and status!='Cancelled')`;
@@ -688,8 +652,6 @@ app.post('/food/update', (req,res) => {
     var created_by = req.body.created_by;
     var image_blob = req.body.image_blob;
     var menu_items = req.body.menu_items;
-    
-    // const now = date.format(date.addMinutes(date.addHours(new Date(), 5),30), 'YYYY-MM-DD', true);   
 
     const now = date.format(date.addMinutes(date.addHours(new Date(), 5),30), 'YYYY-MM-DD HH:mm:ss', true);   
     var data = {};     
@@ -744,6 +706,10 @@ app.post('/food/getupdate', (req,res) => {
     var food_date = req.body.food_date;
     var food_type = req.body.food_type;
 
+    if (branch == 'Kochi') {
+        branch = 'Cochin'
+    }
+
     var selectQuery = `SELECT menu_items, food_time, image_blob, created_at FROM food_tracker WHERE branch = '${branch}' AND food_date = STR_TO_DATE('${food_date}', '%d/%m/%Y') AND food_type='${food_type}' ORDER BY 2 DESC`;
     
     var data = {};
@@ -769,9 +735,8 @@ app.post('/food/getupdate', (req,res) => {
                 var buffer = new Buffer.from(buffer_data);
                 data['image_blob'] = buffer.toString();
                 data['food_time'] = results[0].food_time;
-
-
             }
+
             res.send(data);
         }
     });    
@@ -1213,7 +1178,7 @@ app.post('/food/defaulters/datefilter', (req,res) => {
     console.log('Fetching food defaulters list');
 
     // var filterQuery = `SELECT branch,breakfast,lunch,snacks,dinner FROM food_defaulters WHERE food_date = '${filter_date}' and branch!= 'Coimbatore' ORDER BY 1;`;
-    var filterQuery = `SELECT branch,breakfast,lunch,snacks,dinner FROM food_defaulters WHERE food_date = '${filter_date}' and branch!= 'Maduravoyal' and branch!= 'Hyderabad' ORDER BY 1;`;
+    var filterQuery = `SELECT DISTINCT branch,breakfast,lunch,snacks,dinner FROM food_defaulters WHERE food_date = '${filter_date}' and branch!= 'Maduravoyal' and branch!= 'Hyderabad' ORDER BY 1;`;
     var data = {};
 
     thgmain.query(filterQuery, (err, results, fields) => {
@@ -1290,7 +1255,95 @@ function approvedBy(eid) {
         timezone: "Asia/Kolkata"
     }
     )
- 
+
+
+    app.get('/branches/list', (req, res) => {
+
+        var resList = {};
+        var stateList = [];
+        var facilityList = [];
+
+        function setStateId(stateName) {
+            var stateId;
+            
+            switch (stateName) {
+                case "Tamilnadu":
+                    stateId = 1;                        
+                    break;
+                case "Karnataka":
+                    stateId = 2;                        
+                    break;
+                case "Telangana":
+                    stateId = 3;                        
+                    break;
+                case "Kerala":
+                    stateId = 4;                        
+                    break;                
+            }             
+            return stateId;
+        }
+        
+        var stateQuery = `SELECT DISTINCT branch_state FROM master_branches WHERE branch_state != 'Telangana'`;
+
+        class cstate {
+            constructor(branch_state) {
+              this.branch_state = branch_state;
+              this.id = setStateId(branch_state);
+            }
+          }
+          
+          var branchQuery = `SELECT id, branch_state, branch_name, patient_id_prefix FROM master_branches`;
+  
+          class cbranch {
+            stateId;
+           
+            set abbreviate(abbr) {
+                this.branchAbbr = abbr.substr(abbr.length - 3);
+            }
+
+            constructor(branch_id, branch_name) {
+                this.branch_id = branch_id;
+                this.branch_name = branch_name;
+              }
+            }
+
+        thgmain.query(stateQuery, (err, results, fields) => {
+            if(err) {
+                console.log(err);
+                res.send(`State query error - ${err}`);
+            }
+            else {
+                results.forEach((element, i) => {
+                    const vstate = new cstate(element.branch_state);
+                    stateList.push(vstate);
+                })
+                resList['states'] = stateList;
+                
+                thgmain.query(branchQuery, (err, results, fields) => {
+                    if(err) {
+                        console.log(err);
+                        res.send(`Branch query error - ${err}`);
+                    }
+                    else {
+                        results.forEach((element) => {
+                            let vbranch = new cbranch(element.id, element.branch_name);
+                            // vbranch.changeStateId = element.branch_state;
+                            vbranch.stateId = setStateId(element.branch_state);
+                            vbranch.abbreviate = element.patient_id_prefix;
+    
+                            // console.log(vbranch.stateId, vbranch.branch_name);
+                            facilityList.push(vbranch);
+                        })
+                        resList['facilities'] = facilityList;
+                    }
+                    console.log('Sending branch list');
+                    res.send(resList);
+                })                               
+            }
+        })       
+        
+    })
+
 app.listen(PORT, (err) => {
     if(err) console.log(err);
     console.log("Server listening on", PORT);
