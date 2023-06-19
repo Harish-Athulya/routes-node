@@ -595,6 +595,36 @@ app.post("/expense/request/approve", function(req, res) {
     }
 });
 
+app.post("/purchase/request/approve", function(req, res) {
+    console.log('receiving id...');
+    var req_id = req.body.req_id;
+    var eid = req.body.eid;
+    var status = req.body.status;
+
+    console.log(req_id);
+    console.log(status);
+    console.log(eid);
+        
+    const now = date.format(date.addMinutes(date.addHours(new Date(), 5),30), 'YYYY-MM-DD HH:mm:ss', true);
+    
+    var data = {};
+    var update_query = `UPDATE purchaserequest SET status='${status}', updated_at='${now}', ack_by='${eid}' WHERE unique_id = '${req_id}'`;
+    
+    thgpurchase.query(update_query, (err, results, fields) => {
+        if(err) {
+            console.log(err);
+            data['ack'] = "Failure";
+            data['message'] = "SQL error";
+        } 
+        else {
+            console.log(results);
+            data['ack'] = "Success";
+            data['message'] = "Status updated"
+        }
+        res.send(data);       
+    });           
+});
+
 app.post("/expense/request/clarity", (req, res) => {
     var req_id = req.body.req_id;
     var eid = req.body.eid;
@@ -617,8 +647,6 @@ app.post("/expense/request/clarity", (req, res) => {
            res.send(data);
         } 
     });
-    
-    
 })
 
 app.get('/expense/request/list', (req,res) => {
@@ -652,6 +680,10 @@ app.post('/food/update', (req,res) => {
     var created_by = req.body.created_by;
     var image_blob = req.body.image_blob;
     var menu_items = req.body.menu_items;
+
+    if(branch == "Kochi") {
+        branch = "Cochin";
+    }
 
     const now = date.format(date.addMinutes(date.addHours(new Date(), 5),30), 'YYYY-MM-DD HH:mm:ss', true);   
     var data = {};     
@@ -707,7 +739,7 @@ app.post('/food/getupdate', (req,res) => {
     var food_type = req.body.food_type;
 
     if (branch == 'Kochi') {
-        branch = 'Cochin'
+        branch = 'Cochin';
     }
 
     var selectQuery = `SELECT menu_items, food_time, image_blob, created_at FROM food_tracker WHERE branch = '${branch}' AND food_date = STR_TO_DATE('${food_date}', '%d/%m/%Y') AND food_type='${food_type}' ORDER BY 2 DESC`;
@@ -886,7 +918,7 @@ app.post('/expense/request/list', (req, res) => {
     var valid;
     console.log(isExpense);
 
-    console.log(`sending ${status}`);
+    console.log(`sending ${status}`); 
 
     switch(status) {
         case 'Pending':
@@ -976,6 +1008,10 @@ app.get('/purchase/request/count/:status', (req, res) => {
             valid = 1;
             statusQuery = "SELECT COUNT(pro.req_id) status_count FROM (SELECT pr.unique_id 'req_id', pr.status 'prstate' , po.status 'postate' FROM purchaserequest pr LEFT JOIN purchaseorder po on pr.unique_id = po.unique_id WHERE pr.status = 'Approved' and po.status = 'accounts_approved') pro LEFT JOIN paymentdetails pd ON pro.req_id = pd.unique_id WHERE pd.status = 'Item_Received';"
             break;    
+        case 'PO Raised':
+            valid = 1;
+            statusQuery = "SELECT COUNT(pro.req_id) status_count FROM (SELECT pr.unique_id 'req_id', pr.status 'prstate' , po.status 'postate' FROM purchaserequest pr LEFT JOIN purchaseorder po on pr.unique_id = po.unique_id WHERE pr.status = 'Approved' and po.status = 'waiting_accounts_acknowledge') pro LEFT JOIN paymentdetails pd ON pro.req_id = pd.unique_id WHERE pd.status IS NULL;"
+            break;
         default:
             valid = 0;
             break;
@@ -1148,37 +1184,206 @@ app.get('/expense/request/totalcount/:flag', (req, res) => {
             } 
         }) 
     }
-
-    
 })
 
 app.get('/purchase/request/list', (req, res) => {
-    // var spQuery = `CALL getPurchaseList()`;
-    var spQuery = `SELECT DISTINCT pro.req_id, pro.name "Requestor_Name", pro.department "dept", pro.price "amount", CONCAT(pro.equipment, " - Quantity- ", pro.qty) 'purpose', pro.req_date, pro.updated_at 'approved_at', pro.upAt 'ack_at', pd.created_at 'transfer_at', pd.updated_at 'received_at', pro.updated_at, IF(STRCMP(pd.status, "Item_Received") = 0, "Received", IF(STRCMP(pd.status, "payment_tranfered_waiting_for item_delivered")= 0, "Transferred", IF(STRCMP(pro.postate, "accounts_approved") = 0, "Acknowledged", IF(STRCMP(pro.prstate, "Approved") = 0, "Approved", IF(STRCMP(pro.prstate, "Rejected") = 0, "Rejected", "Pending"))))) "status" FROM (SELECT pr.id, pr.unique_id 'req_id', pr.price, pr.qty, pr.department, pr.equipment, pr.name, pr.status 'prstate' , po.status 'postate', pr.created_at 'req_date', pr.updated_at, po.updated_at "upAt" FROM purchaserequest pr LEFT JOIN purchaseorder po on pr.unique_id = po.unique_id) pro LEFT JOIN paymentdetails pd ON pro.req_id = pd.unique_id ORDER BY pro.id DESC;`;
+    var spQuery = `SELECT DISTINCT pro.req_id, pro.name "Requestor_Name", pro.department "dept", pro.price "amount", pro.equipment, pro.qty, pro.req_date, pro.updated_at 'approved_at', pro.po_raised_at, pro.upAt 'ack_at', pd.created_at 'transfer_at', pd.updated_at 'received_at', pro.updated_at, IF(STRCMP(pd.status, "Item_Received") = 0, "Received", IF(STRCMP(pd.status, "payment_tranfered_waiting_for item_delivered")= 0, "Transferred", IF(STRCMP(pro.postate, "accounts_approved")  = 0, "Acknowledged", IF(STRCMP(pro.postate, "waiting_accounts_acknowledge")  = 0, "PO Raised", IF(STRCMP(pro.prstate, "Approved") = 0, "Approved", IF(STRCMP(pro.prstate, "Rejected") = 0, "Rejected", "Pending")))))) "status" FROM (SELECT pr.id, pr.unique_id 'req_id', pr.price, pr.qty, pr.department, pr.equipment, pr.name, pr.status 'prstate' , po.status 'postate', pr.created_at 'req_date', pr.updated_at, po.updated_at "upAt", po.created_at "po_raised_at" FROM purchaserequest pr LEFT JOIN purchaseorder po on pr.unique_id = po.unique_id) pro LEFT JOIN paymentdetails pd ON pro.req_id = pd.unique_id ORDER BY pro.id DESC`;
+
     var data = {};
+
+    console.log("Fetching purchase requests");
 
     thgpurchase.query(spQuery, (err, results, fields) => {
         if(err) {
             data['ack'] = 'Failure';
-            // console.log(data);
+            console.log(err);
             res.send(data);
         }
         else { 
             data['ack'] = 'Success';
-            data['count'] = results.length
-            data['info'] = results;
-            console.log("Fetching purchase requests");
+
+            const result = results.map(obj => {
+                const { amount, equipment, qty, ...filteredVal } = obj;
+
+                let separateObj = {amount, equipment, qty};
+
+                let amt = amount.trim().split("|")
+                
+                let eqp = equipment.trim().split("|")
+                
+                let quantity = qty.trim().split("|")
+
+
+                const purposes = eqp.map((value, key) => {
+                    const purposeText = `${value} - quantity ${quantity[key]} - price ${amt[key]}`;
+                    return purposeText;
+                })
+
+                const totalAmt = amt.reduce((sum, value) => {
+                    const parsedVal = parseFloat(value);
+                    if(!isNaN(parsedVal)) {
+                        return sum + parsedVal;
+                    }
+                    return sum;
+                }, 0);
+
+                let purposeStr = "";
+
+                const purpose = purposes.reduce((obj, item, index) => {
+                    purposeStr += '* ' + item + '\n';
+                    return purposeStr;
+                  }, purposeStr);
+
+                const result = {'purpose' : purpose, 'price' : totalAmt};                
+                return Object.assign({}, filteredVal, result);
+            })
+            
+            data['count'] = result.length
+            data['info'] = result;
             res.send(data);
         }
     });
 })
+
+app.get('/purchase/request/list/filter', (req, res) => {
+    var arr = (req.query.array.split(',')); // array is a query parameter    
+    console.log(arr);
+
+    var spQuery = `SELECT DISTINCT pro.req_id, pro.name "Requestor_Name", pro.department "dept", pro.price "amount", pro.equipment, pro.qty, pro.req_date, pro.updated_at 'approved_at', pro.po_raised_at, pro.upAt 'ack_at', pd.created_at 'transfer_at', pd.updated_at 'received_at', pro.updated_at, IF(STRCMP(pd.status, "Item_Received") = 0, "Received", IF(STRCMP(pd.status, "payment_tranfered_waiting_for item_delivered")= 0, "Transferred", IF(STRCMP(pro.postate, "accounts_approved")  = 0, "Acknowledged", IF(STRCMP(pro.postate, "waiting_accounts_acknowledge")  = 0, "PO Raised", IF(STRCMP(pro.prstate, "Approved") = 0, "Approved", IF(STRCMP(pro.prstate, "Rejected") = 0, "Rejected", "Pending")))))) "status" FROM (SELECT pr.id, pr.unique_id 'req_id', pr.price, pr.qty, pr.department, pr.equipment, pr.name, pr.status 'prstate' , po.status 'postate', pr.created_at 'req_date', pr.updated_at, po.updated_at "upAt", po.created_at "po_raised_at" FROM purchaserequest pr LEFT JOIN purchaseorder po on pr.unique_id = po.unique_id) pro LEFT JOIN paymentdetails pd ON pro.req_id = pd.unique_id ORDER BY pro.id DESC`;
+    var data = {};
+
+    console.log("Fetching purchase requests");
+
+    thgpurchase.query(spQuery, (err, results, fields) => {
+        if(err) {
+            data['ack'] = 'Failure';
+            console.log(err);
+            res.send(data);
+        }
+        else { 
+            data['ack'] = 'Success';
+
+            const filteredResults = results.filter(item => arr.includes(item.status));
+            const result = filteredResults.map(obj => {
+                const { amount, equipment, qty, ...filteredVal } = obj;
+
+                let separateObj = {amount, equipment, qty};
+
+                let amt = amount.trim().split("|")
+                
+                let eqp = equipment.trim().split("|")
+                
+                let quantity = qty.trim().split("|")
+
+
+                const purposes = eqp.map((value, key) => {
+                    const purposeText = `${value} - quantity ${quantity[key]} - price ${amt[key]}`;
+                    return purposeText;
+                })
+
+                const totalAmt = amt.reduce((sum, value) => {
+                    const parsedVal = parseFloat(value);
+                    if(!isNaN(parsedVal)) {
+                        return sum + parsedVal;
+                    }
+                    return sum;
+                }, 0);
+
+                let purposeStr = "";
+
+                const purpose = purposes.reduce((obj, item, index) => {
+                    purposeStr += '* ' + item + '\n';
+                    return purposeStr;
+                  }, purposeStr);
+
+                const result = {'purpose' : purpose, 'price' : totalAmt};                
+                return Object.assign({}, filteredVal, result);
+            })
+            
+            data['count'] = result.length
+            data['info'] = result;
+            res.send(data);
+        }
+    });
+
+})
+
+app.post('/purchase/request/list/datefilter', (req, res) => {
+    var fromDate = req.body.fromDate;
+    var toDate = req.body.toDate;
+
+    console.log(fromDate);
+    console.log(toDate);
+
+    var spQuery = `SELECT DISTINCT pro.req_id, pro.name "Requestor_Name", pro. epartment "dept", pro.price "amount", pro.equipment, pro.qty, pro.req_date, pro.updated_at 'approved_at', pro.po_raised_at, pro.upAt 'ack_at', pd.created_at 'transfer_at', pd.updated_at 'received_at', pro.updated_at, IF(STRCMP(pd.status, "Item_Received") = 0, "Received", IF(STRCMP(pd.status, "payment_tranfered_waiting_for item_delivered")= 0, "Transferred", IF(STRCMP(pro.postate, "accounts_approved")  = 0, "Acknowledged", IF(STRCMP(pro.postate, "waiting_accounts_acknowledge")  = 0, "PO Raised", IF(STRCMP(pro.prstate, "Approved") = 0, "Approved", IF(STRCMP(pro.prstate, "Rejected") = 0, "Rejected", "Pending")))))) "status" FROM (SELECT pr.id, pr.unique_id 'req_id', pr.price, pr.qty, pr.department, pr.equipment, pr.name, pr.status 'prstate' , po.status 'postate', pr.created_at 'req_date', pr.updated_at, po.updated_at "upAt", po.created_at "po_raised_at" FROM purchaserequest pr LEFT JOIN purchaseorder po on pr.unique_id = po.unique_id) pro LEFT JOIN paymentdetails pd ON pro.req_id = pd.unique_id ORDER BY pro.id DESC`;
+    var data = {};
+
+    console.log("Fetching purchase requests");
+
+    thgpurchase.query(spQuery, (err, results, fields) => {
+        if(err) {
+            data['ack'] = 'Failure';
+            console.log(err);
+            res.send(data);
+        }
+        else { 
+            data['ack'] = 'Success';
+
+            // const filteredResults = results.filter(item => item.);
+            
+            const result = filteredResults.map(obj => {
+                const { amount, equipment, qty, ...filteredVal } = obj;
+
+                let separateObj = {amount, equipment, qty};
+
+                let amt = amount.trim().split("|")
+                
+                let eqp = equipment.trim().split("|")
+                
+                let quantity = qty.trim().split("|")
+
+                const purposes = eqp.map((value, key) => {
+                    const purposeText = `${value} - quantity ${quantity[key]} - price ${amt[key]}`;
+                    return purposeText;
+                })
+
+                const totalAmt = amt.reduce((sum, value) => {
+                    const parsedVal = parseFloat(value);
+                    if(!isNaN(parsedVal)) {
+                        return sum + parsedVal;
+                    }
+                    return sum;
+                }, 0);
+
+                let purposeStr = "";
+
+                const purpose = purposes.reduce((obj, item, index) => {
+                    purposeStr += '* ' + item + '\n';
+                    return purposeStr;
+                  }, purposeStr);
+
+                const result = {'purpose' : purpose, 'price' : totalAmt};                
+                return Object.assign({}, filteredVal, result);
+            })
+            
+            data['count'] = result.length
+            data['info'] = result;
+            res.send(data);
+        }
+
+        
+    })
+
+    
+})
+
 
 app.post('/food/defaulters/datefilter', (req,res) => {
     var filter_date = req.body.food_date;
     console.log('Fetching food defaulters list');
 
     // var filterQuery = `SELECT branch,breakfast,lunch,snacks,dinner FROM food_defaulters WHERE food_date = '${filter_date}' and branch!= 'Coimbatore' ORDER BY 1;`;
-    var filterQuery = `SELECT DISTINCT branch,breakfast,lunch,snacks,dinner FROM food_defaulters WHERE food_date = '${filter_date}' and branch!= 'Maduravoyal' and branch!= 'Hyderabad' ORDER BY 1;`;
+    var filterQuery = `SELECT DISTINCT branch,breakfast,lunch,snacks,dinner FROM food_defaulters WHERE food_date = '${filter_date}' and branch!= 'Hyderabad' ORDER BY 1;`;
     var data = {};
 
     thgmain.query(filterQuery, (err, results, fields) => {
@@ -1203,59 +1408,20 @@ app.get("/test/ackby", (req, res) => {
     res.send(emp_name);
 });
 
-function approvedBy(eid) {
-    block1:
-        if(eid == null) {
-            break block1;
-        }
-        console.log("Not null");
-        var nameQuery = `SELECT name FROM app_users WHERE emp_id = '${eid}'`;
-        console.log(nameQuery);
-
-        thgmain.query(nameQuery, (err, results, fields) => {
-            console.log(results[0].name);        
-            emp_name = results[0].name;
-        }); 
-}
-
-    cron.schedule('0 0 * * *', () => {
-        var selectBranches = `SELECT branch_name FROM master_branches`;
-        const now = date.format(date.addMinutes(date.addHours(new Date(), 5),30), 'YYYY-MM-DD', true);   
-        console.log(now);
-        
-        var branches = [];
-
-        thgmain.query(selectBranches, (err, results, fields) => {
-            if(err) {
-                console.log(err);
+    function approvedBy(eid) {
+        block1:
+            if(eid == null) {
+                break block1;
             }
-            else {
-                results.forEach(element => {
-                    branches.push(element.branch_name);
-                    var branchName = element.branch_name;
+            console.log("Not null");
+            var nameQuery = `SELECT name FROM app_users WHERE emp_id = '${eid}'`;
+            console.log(nameQuery);
 
-                    var insertQuery = `INSERT INTO food_defaulters (branch, food_date, breakfast, lunch, snacks, dinner) VALUES ('${branchName}', '${now}', '0', '0', '0', '0')`;
-                    console.log(insertQuery);
-
-                    thgmain.query(insertQuery, (err2, res2, fields2) => {
-                        if(err2) {
-                            console.log(err2);
-                        }
-                        else {
-                            console.log(res2);
-                        }
-                    });
-                });
-                console.log(branches);
-            }
-        })
-        console.log(`cron ran at ${now}`);
-    }, {
-        scheduled: true,
-        timezone: "Asia/Kolkata"
+            thgmain.query(nameQuery, (err, results, fields) => {
+                console.log(results[0].name);        
+                emp_name = results[0].name;
+            }); 
     }
-    )
-
 
     app.get('/branches/list', (req, res) => {
 
@@ -1341,10 +1507,31 @@ function approvedBy(eid) {
                 })                               
             }
         })       
+    })
+
+    app.get('/asset/track/:code', (req, res) => {
+        var qrval = req.params.code;
+
+        var assetQuery = `SELECT Unique_ID, DeviceType, Branchname, Amount, ExpiryDate, Location, Year, Vendor FROM facility_asset WHERE QRCode = '${qrval}'`;
+
+        thgmain.query(assetQuery, (error, result, fields) => {
+            var data = {};
+            if(error) {
+                data['ack'] = "Failure";
+                data['reason'] = error;
+                console.log(error);
+            }
+            else {
+                data['ack'] = "Success";
+                data['asset'] = result;
+            }
+            res.send(data);
+        })
         
     })
 
-app.listen(PORT, (err) => {
-    if(err) console.log(err);
-    console.log("Server listening on", PORT);
-});
+    
+    app.listen(PORT, (err) => {
+        if(err) console.log(err);
+        console.log("Server listening on", PORT);
+    });
