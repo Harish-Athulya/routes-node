@@ -1512,24 +1512,25 @@ app.get("/test/ackby", (req, res) => {
     app.get('/asset/track/:code', (req, res) => {
         var qrval = req.params.code;
 
-        var assetQuery = `SELECT Unique_ID, DeviceType, Branchname, Amount, ExpiryDate, Location, Year, Vendor FROM facility_asset WHERE QRCode = '${qrval}'`;
+        var assetQuery = `SELECT Unique_ID, DeviceType, Branchname, Amount, ExpiryDate, Location, Year, Vendor, empname, empcode FROM facility_asset WHERE QRCode = '${qrval}'`;
+
+        console.log("Sending Asset Details");
 
         thgmain.query(assetQuery, (error, result, fields) => {
             var data = {};
             if(error) {
                 data['ack'] = "Failure";
                 data['reason'] = error;
-                console.log(error);
+                console.log(error); 
             }
             else {
                 data['ack'] = "Success";
-                data['asset'] = result;
+                // data['asset'] = Object.values(result[0]);
+                data['asset'] = (result[0]);
             }
             res.send(data);
         })
-        
     })
-
     
     app.listen(PORT, (err) => {
         if(err) console.log(err);
