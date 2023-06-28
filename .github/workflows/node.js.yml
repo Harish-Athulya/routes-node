@@ -27,4 +27,7 @@ jobs:
     - run: npm ci
     - run: sudo pm2 restart App_api
     - run: sudo pm2 save
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v3
+      env: ${{ secrets.CODECOV_TOKEN }}
     
