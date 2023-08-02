@@ -5,7 +5,7 @@ name: Node.js CI
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "master", "feature" ]
 
 jobs:
   build:
@@ -26,5 +26,4 @@ jobs:
         cache: 'npm'
     - run: npm i
     - run: sudo pm2 restart App_api
-    - run: sudo pm2 save
-    
+    - run: sudo pm2 save 
