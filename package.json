@@ -12,6 +12,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@el3um4s/node-adodb": "^5.0.17",
     "body-parser": "^1.20.1",
     "date-and-time": "^2.4.1",
     "dotenv": "^16.0.3",

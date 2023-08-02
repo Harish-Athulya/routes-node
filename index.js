@@ -8,9 +8,6 @@ const PORT = process.env.PORT || 5000;
 const thgpurchase = require('./utils/thg_purchase');
 var cron = require('node-cron');
 
-
-// var client_expense = require('./router/client_expense.js');
-
 var app = express();
 
 app.use(bodyParser.json({limit: '50mb'}));
@@ -680,6 +677,25 @@ app.post('/food/update', (req,res) => {
     var created_by = req.body.created_by;
     var image_blob = req.body.image_blob;
     var menu_items = req.body.menu_items;
+    
+    var set_food = food_type.toLowerCase();
+
+
+    var updateQuery = `UPDATE food_defaulters SET ${set_food} = '1' WHERE branch = '${branch}' and food_date = STR_TO_DATE('${food_date}', '%d/%m/%Y')`;
+  
+    thgmain.query(updateQuery, (err, results, fields) => {
+        if(err) {
+            console.log(err);
+            data['ack'] = 'Failure';
+            res.send(data);
+        }
+        else {
+            console.log(results);
+            data['ack'] = 'Success';
+            // data['info'] = results;
+            res.send(data);
+        }
+    });
 
     if(branch == "Kochi") {
         branch = "Cochin";
@@ -713,24 +729,6 @@ app.post('/food/update', (req,res) => {
     console.log(food_date);
     console.log(food_type);
 
-    var set_food = food_type.toLowerCase();
-
-
-    var updateQuery = `UPDATE food_defaulters SET ${set_food} = '1' WHERE branch = '${branch}' and food_date = STR_TO_DATE('${food_date}', '%d/%m/%Y')`;
-  
-    thgmain.query(updateQuery, (err, results, fields) => {
-        if(err) {
-            console.log(err);
-            data['ack'] = 'Failure';
-            res.send(data);
-        }
-        else {
-            console.log(results);
-            data['ack'] = 'Success';
-            // data['info'] = results;
-            res.send(data);
-        }
-    });
 });
 
 app.post('/food/getupdate', (req,res) => {
@@ -1530,7 +1528,7 @@ app.get("/test/ackby", (req, res) => {
             }
             res.send(data);
         })
-    })
+    })  
     
     app.listen(PORT, (err) => {
         if(err) console.log(err);
