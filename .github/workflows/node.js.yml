@@ -26,5 +26,4 @@ jobs:
         cache: 'npm'
     - run: npm ci
     - run: sudo pm2 restart App_api
-    - run: sudo pm2 save
-    
+    - run: sudo pm2 save 
